@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="FTS-User:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/FTS_User_jar</output-path>
+    <root id="archive" name="FTS-User.jar">
+      <element id="module-output" name="FTS-User" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/commons-lang3-3.5.jar" path-in-jar="/" />
+      <element id="library" level="project" name="commons-lang3-3.5" />
+    </root>
+  </artifact>
+</component>
