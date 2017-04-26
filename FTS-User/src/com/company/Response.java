@@ -10,7 +10,7 @@ public class Response {
     int status;
     String msg;
     String currentPath;
-    boolean isErr = false;
+    private boolean isErr = false;
 
     Response(String[] res) {
         if (res.length != 3)
@@ -19,6 +19,7 @@ public class Response {
         msg = unescapeJava(res[1]);
         currentPath = res[2];
         isErr = status == -1;
+
     }
 
     static Response parseResponse(String res) {
@@ -30,7 +31,7 @@ public class Response {
         return status + ";" + msg + ";" + currentPath;
     }
 
-    public void printMsg() {
+    void printMsg() {
         if(isErr)
             System.err.println(msg);
         else
