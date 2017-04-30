@@ -2,6 +2,7 @@ package com.company;
 
 import java.io.*;
 import java.net.*;
+import java.util.Arrays;
 
 public class Main {
 
@@ -10,9 +11,8 @@ public class Main {
     static Socket socket;
     static BufferedReader userRead;
     static PrintWriter writer;
-
+    
     public static void main(String[] args) {
-
         String path = "";
         try {
             socket = new Socket("127.0.0.1",PORT);
@@ -25,15 +25,61 @@ public class Main {
             }
             System.out.print(line + " ");
             userRead = new BufferedReader( new InputStreamReader(System.in) );
-            writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+            OutputStream socketOut =socket.getOutputStream();
+            String rawResponse = "";
             try {
                 while (true) {
+                    writer = new PrintWriter(new OutputStreamWriter(socketOut));
                     Response response;
                     String cmd = userRead.readLine();
-                    if (cmd != null && !"".equals(cmd)) {
-                        writer.println(cmd);
-                        writer.flush();
-                        String rawResponse = reader.readLine();
+
+                    String[] cmd_fields = cmd.split(" ");
+                    File file = null;
+                    int fileSize = 0;
+                    if("upload".equals(cmd_fields[0]) && cmd_fields.length == 2) {
+                        file = new File(cmd_fields[1]);
+                        fileSize = (int) file.length();
+                        cmd = "upload "+file.getAbsolutePath()+" "+fileSize;
+
+                    }
+                    System.out.println("----------------");
+
+                    if (cmd != null && !("".equals(cmd))) {
+                        System.out.println(cmd);
+
+                        if(null != file && !file.exists()) {
+                            System.err.println("File Not Found!!!!!!!!");
+                        }
+                        if(!"upload".equals(cmd_fields[0])) {
+                            writer.println(cmd);
+                            writer.flush();
+                            rawResponse = reader.readLine();
+                        }
+
+
+                        if("upload".equals(cmd_fields[0]) && cmd_fields.length == 2) {
+                            writer.println(cmd);
+                            writer.flush();
+
+                            if(null != file && file.exists()) {
+                                FileInputStream bis;
+
+                                try {
+                                    bis = new FileInputStream(file);
+                                    byte[] fileByts = new byte[fileSize];
+                                    int count;
+                                    while((count = bis.read(fileByts)) > 0){}
+                                    socketOut.write(fileByts);
+                                    socketOut.flush();
+                                    rawResponse = reader.readLine();
+                                } catch (FileNotFoundException e1) {
+                                    e1.printStackTrace();
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
+                            }
+                        }
+
                         if (rawResponse != null)
                             response = Response.parseResponse(rawResponse);
                         else
@@ -64,6 +110,7 @@ public class Main {
                                     response.printMsg();
                                 break;
                             default:
+                                path = response.currentPath;
                                 response.printMsg();
                                 break;
                         }

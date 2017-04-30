@@ -2,6 +2,7 @@ package com.company;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
 
 /**
  * Connection
@@ -17,7 +18,7 @@ public class Connection extends Thread {
 
     private Client user;
     private Socket socket;
-    private String currentPath="/";
+    private String currentPath = "/";
 
     public Connection(Socket socket) {
         this.socket = socket;
@@ -26,7 +27,7 @@ public class Connection extends Thread {
     @Override
     public void run() {
         try {
-            PrintWriter writer = new PrintWriter( new OutputStreamWriter(socket.getOutputStream()));
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
             writer.println("Welcome to our File Transfer Service");
             writer.println("to get started you should login, if you dont have an account yet yo can register now for free.");
             writer.println("--------------------------");
@@ -36,7 +37,7 @@ public class Connection extends Thread {
             String command;
             while (true) {
                 command = readCmd();
-                if(command == null || "exit".equals(command)) {
+                if (command == null || "exit".equals(command)) {
                     terminateConnection();
                     break;
                 }
@@ -48,33 +49,40 @@ public class Connection extends Thread {
     }
 
     public String cd(String path) {
-        path = MyFile.filterPath(path);
-        String tmp_path="";
+        path = File.filterPath(path);
+        String tmp_path = "";
         switch (path) {
             case "../":
-                if(!currentPath.equals(FileManager.root_path)) {
+                if (!currentPath.equals(FileManager.root_path)) {
                     tmp_path = currentPath.substring(0,
-                            currentPath.substring(0 , currentPath.length() - 1).lastIndexOf("/")+1);
-                    if(tmp_path.equals(""))
+                            currentPath.substring(0, currentPath.length() - 1).lastIndexOf("/") + 1);
+                    if (tmp_path.equals(""))
                         tmp_path = "/";
                     break;
                 }
-                System.err.println("You are at root path: "+pwd());
+                System.err.println("You are at root path: " + pwd());
                 break;
             case "/":
                 tmp_path = "/";
                 break;
             default:
-                File tmpFile = new File(FileManager.root_path + currentPath + path);
-                if(tmpFile.exists()) {
-                    tmp_path = currentPath + path;
-                    break;
+                Folder tmpFolder = null;
+                try {
+                    tmpFolder = new Folder(FileManager.root_path + currentPath + path);
+                    if (tmpFolder.exists()) {
+                        tmp_path = currentPath + path;
+                        break;
+                    }
+                } catch (IOException e) {
+                    writeErr(e.getMessage());
+                    e.printStackTrace();
                 }
+
 
                 System.err.println("Path does not exist!");
         }
-        if(!(user.getAccessRights() == Client.A_RESTR
-                && tmp_path.equals("/"))){
+        if (!(user.getAccessRights() == Client.A_RESTR
+                && tmp_path.equals("/"))) {
             currentPath = tmp_path;
             return null;
         } else {
@@ -87,9 +95,9 @@ public class Connection extends Thread {
     }
 
     public String readCmd() {
-        BufferedReader reader ;
+        BufferedReader reader;
         try {
-            reader = new BufferedReader( new InputStreamReader( socket.getInputStream() ) );
+            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             return reader.readLine();
         } catch (IOException e) {
             e.printStackTrace();
@@ -97,16 +105,35 @@ public class Connection extends Thread {
         return null;
     }
 
-    public void writeMsg(String msg) {
-        writeToUser(0,msg);
+    public Object readObj() {
+        ObjectInputStream reader;
+        try {
+            reader = new ObjectInputStream(socket.getInputStream());
+            return reader.readObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
+
+    public void sendCurrentPath() {
+        writeToUser(0, "");
+    }
+
+    public void writeMsg(String msg) {
+        writeToUser(0, msg);
+    }
+
     public void writeErr(String error) {
         writeToUser(ERR_STAT, error);
     }
+
     public void writeToUser(int code, String msg) {
         try {
-            PrintWriter writer = new PrintWriter( new OutputStreamWriter(socket.getOutputStream()));
-            writer.println(code+";"+msg+";"+currentPath);
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
+            writer.println(code + ";" + msg + ";" + currentPath);
             writer.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -114,28 +141,69 @@ public class Connection extends Thread {
     }
 
     public void execCmd(String cmd) {
-        if(user != null) {
+        if (user != null) {
+            System.out.println(cmd);
             String[] cmd_fields = cmd.split(" ");
             switch (cmd_fields[0].trim()) {
                 case "pwd":
                     System.out.println(pwd());
-                    writeToUser(0,pwd());
+                    writeToUser(0, pwd());
                     break;
                 case "cd":
                     String msg = cd(cmd_fields[1]);
-                    if(msg == null)
-                        writeToUser(CD_STAT,"");
+                    if (msg == null)
+                        writeToUser(CD_STAT, "");
                     else
                         writeErr(msg);
                     break;
                 case "mkdir":
-
+                    if (cmd_fields.length == 2) {
+                        FileManager.mkdir(cmd_fields[1], currentPath, user);
+                        cd(cmd_fields[1]);
+                        sendCurrentPath();
+                    } else
+                        writeErr("mkdir takes only one parameter");
+                    break;
+                case "ls":
+                    if (cmd_fields.length == 1) {
+                        String[] files = FileManager.listFiles(currentPath);
+                        String data = "";
+                        for (String file :
+                                files) {
+                            data += file + "\\t";
+                        }
+                        writeMsg(data);
+                    }
                     break;
                 case "rm":
 
                     break;
                 case "upload":
+                    System.out.println(cmd_fields.length);
+                    if (cmd_fields.length == 3) {
 
+                        String filename;
+                        if (cmd_fields[1].lastIndexOf("/") != -1)
+                            filename = cmd_fields[1].substring(cmd_fields[1].lastIndexOf("/"));
+                        else
+                            filename = cmd_fields[1];
+                        int fileSize = Integer.parseInt(cmd_fields[2]);
+                        byte[] fileByts;
+                        try {
+                            BufferedInputStream is = new BufferedInputStream(socket.getInputStream());
+                            fileByts = new byte[fileSize];
+                            System.out.println("11");
+                            is.read(fileByts);
+                            System.out.println("22");
+                            System.out.println(Arrays.toString(fileByts));
+                            FileManager.upload(fileByts, filename, currentPath, false);
+                            writeMsg("File Uploaded");
+
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
                     break;
                 case "download":
 
@@ -147,7 +215,7 @@ public class Connection extends Thread {
                     UsersManager.logout(user);
                     user = null;
                     currentPath = "/";
-                    writeToUser(LOGOUT_STAT,"Logged out");
+                    writeToUser(LOGOUT_STAT, "Logged out");
                     break;
                 default:
                     cmdNotFoundMsg();
@@ -162,7 +230,7 @@ public class Connection extends Thread {
         String[] cmd_fields = cmd.split(" ");
         switch (cmd_fields[0].trim()) {
             case "login":
-                if(cmd_fields.length != 3) {
+                if (cmd_fields.length != 3) {
                     writeErr("Missing parameter !");
                     break;
                 }
@@ -170,21 +238,21 @@ public class Connection extends Thread {
                     user = UsersManager.login(cmd_fields[1], cmd_fields[2]);
                     System.out.println("logged in user " + user.getFirstName());
                     cd(user.getHome());
-                    writeToUser(LOGIN_STAT,"Welcome "+user.getFirstName());
+                    writeToUser(LOGIN_STAT, "Welcome " + user.getFirstName());
                 } catch (IllegalArgumentException e) {
                     System.err.println(e);
                     writeErr(e.getMessage());
                 }
                 break;
             case "signup":
-                if(cmd_fields.length != 6) {
+                if (cmd_fields.length != 6) {
                     writeErr("Missing parameter !");
                     break;
                 }
                 byte acc;
-                if("ALL".equals(cmd_fields[5].toUpperCase()))
+                if ("ALL".equals(cmd_fields[5].toUpperCase()))
                     acc = Client.A_ALL;
-                else if("RESTR".equals(cmd_fields[5].toUpperCase()))
+                else if ("RESTR".equals(cmd_fields[5].toUpperCase()))
                     acc = Client.A_RESTR;
                 else {
                     writeErr("Access rights is wrong format.");
@@ -192,11 +260,10 @@ public class Connection extends Thread {
                 }
                 try {
                     user = UsersManager.register(cmd_fields[1], cmd_fields[2], cmd_fields[3], cmd_fields[4], acc);
-                    System.out.println("user '"+user.getFirstName()+"' has registered.");
+                    System.out.println("user '" + user.getFirstName() + "' has registered.");
                     cd(user.getHome());
                     writeToUser(SIGNUP_STAT, "You have successfully signed up.");
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     writeErr(e.getMessage());
                     //System.err.println(e);
                     e.printStackTrace();
@@ -213,9 +280,9 @@ public class Connection extends Thread {
 
     public void terminateConnection() {
         try {
-            if(user != null)
+            if (user != null)
                 UsersManager.logout(user);
-            writeToUser(EXIT_STAT,"Good bye");
+            writeToUser(EXIT_STAT, "Good bye");
             socket.close();
             System.out.println("Connection Terminated");
         } catch (IOException e) {

@@ -22,7 +22,7 @@ public class UsersManager {
             registeredUsers = retrieveUsers();
         } catch (Exception e){
             try {
-                (new File(usersPath)).createNewFile();
+                (new Folder(usersPath)).createNewFile();
             } catch (IOException e1) {
                 e1.printStackTrace();
             }

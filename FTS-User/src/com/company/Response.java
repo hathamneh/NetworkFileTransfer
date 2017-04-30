@@ -32,11 +32,17 @@ public class Response {
     }
 
     void printMsg() {
-        if(isErr)
-            System.err.println(msg);
-        else
-            System.out.println(msg);
-        System.err.flush();
-        System.out.flush();
+        if(hasMsg()) {
+            if (isErr)
+                System.err.println(msg);
+            else
+                System.out.println(msg);
+            System.err.flush();
+            System.out.flush();
+        }
+    }
+
+    boolean hasMsg() {
+        return !(null == msg || "" == msg);
     }
 }
