@@ -77,26 +77,29 @@ public class FileManager {
         try {
             BufferedInputStream is = new BufferedInputStream(stream);
 
-            byte[] buff = new byte[1024 * 1024];
+            byte[] buff = new byte[1024];
             int k, count = 0;
-            File f = new File(name, currentPath, filePrivate, new Date());
-            if (!f.exists()) {
-                f.createNewFile();
-                Folder parent =  new Folder(f.getParent());
-                parent.addFile(f);
+            File file = new File(name, currentPath, filePrivate, new Date());
+            if (!file.exists()) {
+                file.createNewFile();
+                Folder parent =  new Folder(file.getParent());
+                parent.addFile(file);
                 System.out.println("File Created!");
             } else {
                 System.out.println("File is already exist");
             }
             BufferedOutputStream bout = new BufferedOutputStream(
-                    new FileOutputStream(f));
-            while (count < fileSize) {
-                k = is.read(buff);
-                bout.write(buff,0,k);
-                count += k;
+                    new FileOutputStream(file));
+            try {
+                while (count < fileSize) {
+                    k = is.read(buff);
+                    bout.write(buff,0,k);
+                    count += k;
+                    bout.flush();
+                }
+            } finally {
+                bout.close();
             }
-            bout.flush();
-            bout.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -105,22 +108,35 @@ public class FileManager {
     }
 
     static void download(OutputStream stream, File file) throws Exception {
-
+        int fileSize = (int)file.length();
         BufferedOutputStream os = new BufferedOutputStream(stream);
-        byte[] buff = new byte[1024 * 1024];
-        int k, count = 0;
+        byte[] buff = new byte[fileSize];
         BufferedInputStream bin = new BufferedInputStream(
                 new FileInputStream(file));
         if (!file.exists()) {
             throw new FileNotFoundException("Can't find the file");
         }
-
-        while (count < file.length()) {
-            k = bin.read(buff, 0, buff.length);
-            os.write(buff);
-            count += k;
+        try {
+            int sentBytes=0,k;
+            while ((k = bin.read(buff))>0) {
+                sentBytes += k;
+                os.write(buff, 0, k);
+                os.flush();
+                if(sentBytes == fileSize) break;
+            }
+        } finally {
+            bin.close();
         }
-        os.flush();
-        bin.close();
+    }
+
+    static void delete(java.io.File file) {
+        try {
+            Folder parent = new Folder(file.getParent());
+            file.delete();
+            parent.refresh();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 }

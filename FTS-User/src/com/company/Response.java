@@ -1,5 +1,10 @@
 package com.company;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+
 import static org.apache.commons.lang3.StringEscapeUtils.unescapeJava;
 
 /**
@@ -7,6 +12,17 @@ import static org.apache.commons.lang3.StringEscapeUtils.unescapeJava;
  * Created by haitham on 4/23/17.
  */
 public class Response {
+    static final int EXIT_STAT = 1;
+    static final int CD_STAT = 2;
+    static final int SIGNUP_STAT = 11;
+    static final int LOGIN_STAT = 10;
+    static final int LOGOUT_STAT = 9;
+    static final int ERR_STAT = -1;
+    static final int UPLD_STAT = 15;
+    static final int DNLD_STAT = 16;
+    static final int RM_STAT = 17;
+
+
     int status;
     String msg;
     String currentPath;
@@ -36,6 +52,7 @@ public class Response {
     }
 
     void printMsg() {
+        System.out.print("\r");
         if(hasMsg()) {
             if (isErr)
                 System.err.println(msg);
@@ -51,4 +68,16 @@ public class Response {
     }
 
 
+    public static Object receiveObj(InputStream inputStream) {
+        try {
+            ObjectInputStream oin = new ObjectInputStream(inputStream);
+            return oin.readObject();
+        } catch (IOException e) {
+            System.err.println("Can't retrieve file info");
+            return null;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 }

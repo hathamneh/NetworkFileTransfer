@@ -1,8 +1,7 @@
 package com.company;
 
 import java.io.*;
-import java.net.Socket;
-import java.util.Arrays;
+import java.text.DecimalFormat;
 
 /**
  * Request
@@ -23,13 +22,12 @@ public class Request {
             file = new File(args[0]);
             fileSize = file.length();
         }
-        if(isDownload()) {
-            if(args.length == 2) {
-                file = new File(args[1]+ File.separator + args[0]);
+        if (isDownload()) {
+            if (args.length == 2) {
+                file = new File(args[1] + File.separator + args[0]);
                 args[1] = "";
-            }
-            else
-                file = new File(System.getProperty("user.dir")+ File.separator + args[0]);
+            } else
+                file = new File(System.getProperty("user.dir") + File.separator + args[0]);
         }
 
     }
@@ -90,35 +88,56 @@ public class Request {
     public void sendFile(OutputStream socketOS) throws IOException {
         FileInputStream bis = new FileInputStream(file);
         System.out.println("Uploading...");
-        byte[] fileByts = new byte[(int) fileSize];
-        while (bis.read(fileByts, 0, fileByts.length) > 0) {}
-        socketOS.write(fileByts);
-        socketOS.flush();
+        byte[] fileByts = new byte[1024];
+        int sentBytes = 0, k;
+        DecimalFormat numberFormat = new DecimalFormat("#.00");
+        while (sentBytes < fileSize && (k = bis.read(fileByts))>0) {
+            sentBytes += k;
+            socketOS.write(fileByts, 0, k);
+            socketOS.flush();
+            System.out.print("\r " + numberFormat.format(sentBytes * 100.0 / fileSize) + "% (Uploaded " + hSize(sentBytes) + " of " + hSize(fileSize) + ")");
+        }
+        System.out.println();
+        System.out.println("Just a sec...");
     }
 
-    public void recieveFile(InputStream socketIS) throws IOException {
-        byte[] buff = new byte[1024*1024];
-        int k,count=0;
+    // Receive File from Server (Download)
+    public void recieveFile(InputStream socketIS, long fileSize) throws IOException, ClassNotFoundException {
+        byte[] buff = new byte[1024];
+        int current, bytesRead;
         BufferedInputStream bin = new BufferedInputStream(socketIS);
-        DataInputStream din = new DataInputStream(bin);
-        fileSize = din.readInt();
-        System.out.println(fileSize);
-        if(fileSize == -1){
-            System.err.println("File not found in the server!");
-            return;
-        }
-        System.out.println("Downloading....");
+
+        System.out.println("Downloading " + hSize(fileSize) + ".... ");
         BufferedOutputStream bout = new BufferedOutputStream(
                 new FileOutputStream(file));
-        if(!file.exists())
+        if (!file.exists())
             file.createNewFile();
-        System.out.println(file.getAbsoluteFile());
-        while(count < fileSize) {
-            k = bin.read(buff);
-            bout.write(buff, 0, k);
-            count += k;
+
+        //System.out.println(file.getAbsoluteFile());
+        DecimalFormat numberFormat = new DecimalFormat("#.0");
+
+        try {
+            int rcvdBytes = 0, k,i=0;
+            while((k = bin.read(buff)) > 0) {
+                rcvdBytes += k;
+                bout.write(buff, 0, k);
+                bout.flush();
+                if(i % 3 == 0)
+                    System.out.print("\r\r\r "+numberFormat.format(rcvdBytes * 100.0/fileSize) + "% (Downloaded "+hSize(rcvdBytes)+" of "+hSize(fileSize)+")");
+                i++;
+                if(rcvdBytes == fileSize) break;
+            }
+            System.out.println();
+        } finally {
+            bout.close();
         }
-        bout.flush();
-        bout.close();
+    }
+
+    public static String hSize(long bytes) {
+        int unit = 1024;
+        if (bytes < unit) return bytes + " B";
+        int exp = (int) (Math.log(bytes) / Math.log(unit));
+        String pre = "KMGTPE".charAt(exp - 1) + "i";
+        return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
     }
 }

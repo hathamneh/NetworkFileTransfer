@@ -58,15 +58,6 @@ public class Main {
                                 System.err.println("Some error happened :(");
                             }
                         }
-                        if (request.isDownload()) {
-                            try {
-                                request.recieveFile(socket.getInputStream());
-                            } catch (FileNotFoundException e1) {
-                                System.err.println("File Not Found!!");
-                            } catch (IOException e1) {
-                                System.err.println("Some error happened :(");
-                            }
-                        }
 
                         rawResponse = reader.readLine();
                         //System.out.println(rawResponse);
@@ -75,33 +66,52 @@ public class Main {
                         else
                             throw new ConnectException("Connection lost !");
 
-                        if (response.status == 1) {
+                        if (response.status == Response.EXIT_STAT) {
                             response.printMsg();
                             socket.close();
                             System.exit(0);
                         }
 
                         switch (response.status) {
-                            case 10:  // status 10 is for login command
+                            case Response.LOGIN_STAT:  // status 10 is for login command
                                 clearScreen();
                                 response.printMsg();
                                 path = response.currentPath;
                                 loggedin = true;
 
                                 break;
-                            case 11:  // status 11 is for signup command
+                            case Response.SIGNUP_STAT:  // status 11 is for signup command
                                 response.printMsg();
                                 path = response.currentPath;
                                 break;
-                            case 9:  // status 9 is for logout
+                            case Response.LOGOUT_STAT:  // status 9 is for logout
                                 path = "";
                                 loggedin = false;
                                 response.printMsg();
                                 break;
-                            case 2:  // status 2 is for cd command
+                            case Response.CD_STAT:  // status 2 is for cd command
                                 path = response.currentPath;
                                 if (!"".equals(response.msg))
                                     response.printMsg();
+                                break;
+                            case Response.DNLD_STAT:
+                                try {
+                                    response.printMsg();
+                                    DataInputStream oin = new DataInputStream(new BufferedInputStream(
+                                            socket.getInputStream()));
+                                    long fsize = oin.readLong();
+                                    request.recieveFile(socket.getInputStream(), fsize);
+                                    writer.println("0");
+                                    writer.flush();
+                                    rawResponse = reader.readLine();
+                                    response = Response.parseResponse(rawResponse);
+                                    response.printMsg();
+                                } catch (FileNotFoundException e1) {
+                                    System.err.println("File Not Found!!");
+                                } catch (Exception e1) {
+                                    e1.printStackTrace();
+                                    System.err.println("Some error happened !");
+                                }
                                 break;
                             default:
                                 path = response.currentPath;

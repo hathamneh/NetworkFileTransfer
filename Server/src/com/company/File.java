@@ -45,23 +45,25 @@ public class File extends java.io.File {
         return filePrivate ? "private" : "public";
     }
 
-    static File getFile(String name, String path, Client owner) throws IOException {
+    static File search(String name, String path, Client owner) throws IOException {
         path = FileManager.root_path + path;
-        System.out.println(path + name);
+        //System.out.println(path + name);
         Folder folder = new Folder(path);
         folder.refresh();
         ArrayList<File> files = folder.getFilesArray();
         for (File file :
                 files) {
-            System.out.println(file.getName());
+            //System.out.println(file.getName());
             if (file.getName().equals(name)) {
                 if (file.getFileAccess().equals("public"))
                     return file;
                 if (file.getOwner().equals(owner.toString()))
                     return file;
-                throw new IOException("You have no access yo this file");
+                throw new IOException("You don't have access to delete this file");
             }
         }
-        throw new FileNotFoundException("Can't find the file");
+
+        return null;
     }
+
 }

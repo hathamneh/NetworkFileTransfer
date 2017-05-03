@@ -149,4 +149,40 @@ public class Folder extends java.io.File {
         return new Date(lastModified());
     }
 
+    @Override
+    public boolean delete() {
+        refresh();
+        System.out.println("deleting folder: "+folders.size()+" folders, "+files.size()+" files");
+        // delete files
+        for (File file : files) {
+            file.delete();
+        }
+        // delete folders recursively
+        for (Folder folder : folders){
+            folder.delete();
+        }
+        // delete details folder
+        (new java.io.File(getAbsolutePath()+File.separator+detailsPath)).delete();
+        // delete file itself
+        return super.delete();
+    }
+
+    static Folder search(String name, String path, Client owner) throws IOException {
+        path = FileManager.root_path + path;
+        //System.out.println(path + name);
+        Folder parent = new Folder(path);
+        parent.refresh();
+        ArrayList<Folder> folders = parent.getFoldersArray();
+        for (Folder folder :
+                folders) {
+            //System.out.println(file.getName());
+            if (folder.getName().equals(name)) {
+                if (folder.getOwner().equals(owner.toString()))
+                    return folder;
+                throw new IOException("You don't have access to delete this folder");
+            }
+        }
+
+        return null;
+    }
 }

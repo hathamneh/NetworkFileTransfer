@@ -2,6 +2,7 @@ package com.company;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * Connection
@@ -14,6 +15,9 @@ public class Connection extends Thread {
     private static final int LOGIN_STAT = 10;
     private static final int LOGOUT_STAT = 9;
     private static final int ERR_STAT = -1;
+    private static final int UPLD_STAT = 15;
+    private static final int DNLD_STAT = 16;
+    private static final int RM_STAT = 17;
 
     private Client user;
     private Socket socket;
@@ -34,13 +38,21 @@ public class Connection extends Thread {
             writer.println(">");
             writer.flush();
             String command;
-            while (true) {
-                command = readCmd().trim();
-                if (command == null || "exit".equals(command)) {
-                    terminateConnection();
-                    break;
+            try {
+                while (true) {
+                    command = readCmd().trim();
+                    if (command == null || "exit".equals(command)) {
+                        terminateConnection();
+                        break;
+                    }
+                    execCmd(command);
                 }
-                execCmd(command);
+            } catch (SocketException e) {
+                System.err.println("Connection lost!");
+            } catch (NullPointerException e) {
+                System.err.println("Connection lost!");
+            } finally {
+                socket.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -73,7 +85,7 @@ public class Connection extends Thread {
                         break;
                     }
                 } catch (IOException e) {
-                    writeErr(e.getMessage());
+                    sendErr(e.getMessage());
                     e.printStackTrace();
                 }
 
@@ -93,15 +105,10 @@ public class Connection extends Thread {
         return currentPath;
     }
 
-    public String readCmd() {
+    public String readCmd() throws IOException {
         BufferedReader reader;
-        try {
-            reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            return reader.readLine();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
+        reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        return reader.readLine();
     }
 
     public Object readObj() {
@@ -118,24 +125,35 @@ public class Connection extends Thread {
     }
 
     public void sendCurrentPath() {
-        writeWithCode(0, "");
+        sendWithCode(0, "");
     }
 
-    public void writeMsg(String msg) {
-        writeWithCode(0, msg);
+    public void sendMsg(String msg) {
+        sendWithCode(0, msg);
     }
 
-    public void writeErr(String error) {
-        writeWithCode(ERR_STAT, error);
+    public void sendErr(String error) {
+        sendWithCode(ERR_STAT, error);
     }
 
-    public void writeWithCode(int code, String msg) {
-        writeRaw(code + ";" + msg + ";" + currentPath);
+    public void sendWithCode(int code, String msg) {
+        sendRaw(code + ";" + msg + ";" + currentPath);
     }
-    public void writeRaw(Object data) {
+
+    public void sendRaw(String data) {
         try {
             PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
             writer.println(data);
+            writer.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendRaw(long number) {
+        try {
+            DataOutputStream writer = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+            writer.writeLong(number);
             writer.flush();
         } catch (IOException e) {
             e.printStackTrace();
@@ -149,18 +167,18 @@ public class Connection extends Thread {
             switch (cmd_fields[0].trim()) {
                 case "pwd":
                     System.out.println(pwd());
-                    writeWithCode(0, pwd());
+                    sendWithCode(0, pwd());
                     break;
                 case "cd":
-                    if(cmd_fields.length < 2) {
-                        writeErr("Please specify the path you want to change directory to.");
+                    if (cmd_fields.length < 2) {
+                        sendErr("Please specify the path you want to change directory to.");
                         break;
                     }
                     String msg = cd(cmd_fields[1]);
                     if (msg == null)
-                        writeWithCode(CD_STAT, "");
+                        sendWithCode(CD_STAT, "");
                     else
-                        writeErr(msg);
+                        sendErr(msg);
                     break;
                 case "mkdir":
                     if (cmd_fields.length == 2) {
@@ -168,7 +186,7 @@ public class Connection extends Thread {
                         cd(cmd_fields[1]);
                         sendCurrentPath();
                     } else
-                        writeErr("mkdir takes only one parameter");
+                        sendErr("mkdir takes only one parameter");
                     break;
                 case "ls":
                     if (cmd_fields.length == 1) {
@@ -178,11 +196,32 @@ public class Connection extends Thread {
                                 files) {
                             data += file + "\\t";
                         }
-                        writeMsg(data);
+                        sendMsg(data);
                     }
                     break;
                 case "rm":
+                    if (cmd_fields.length == 2) {
+                        String filename = cmd_fields[1];
+                        try {
+                            // get the file
+                            File file = File.search(filename, currentPath.replaceFirst("/", ""), user);
+                            Folder folder =  Folder.search(filename, currentPath.replaceFirst("/", ""), user);
+                            if (file != null) {
+                                FileManager.delete(file); // delete the file
+                                // send acknowledgment
+                                sendWithCode(RM_STAT, "File deleted!");
+                            } else if(folder != null){
+                                FileManager.delete(folder);
+                                // send acknowledgment
+                                sendWithCode(RM_STAT, "Folder deleted!");
+                            }
 
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            sendErr(e.getMessage());
+                        }
+                    }
                     break;
                 case "upload":
                     //System.out.println(cmd_fields.length);
@@ -197,7 +236,7 @@ public class Connection extends Thread {
                         //System.out.println(fileSize);
                         try {
                             FileManager.upload(socket.getInputStream(), filename, fileSize, currentPath, false);
-                            writeMsg("File Uploaded");
+                            sendMsg("File Uploaded");
 
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -211,19 +250,21 @@ public class Connection extends Thread {
                         String filename = cmd_fields[1];
                         try {
                             // get the file
-                            File file = File.getFile(filename,  currentPath.replaceFirst("/",""), user);
+                            File file = File.search(filename, currentPath.replaceFirst("/", ""), user);
+                            sendWithCode(DNLD_STAT, "File located, preparing to download...");
                             // send file size
-                            DataOutputStream bwrite = new DataOutputStream(socket.getOutputStream());
-                            bwrite.writeInt((int) file.length());
-                            bwrite.flush();
-                            // download the file
+                            System.out.println(file.length());
+                            sendRaw(file.length());
+                            // send the file contnets to user
                             FileManager.download(socket.getOutputStream(), file);
-                            writeMsg("File Downloaded");
+                            String s = readCmd();
+                            System.out.println(s);
+                            if (s != null && 0 == Integer.parseInt(s))
+                                sendMsg("File Downloaded");
 
                         } catch (Exception e) {
-                            writeRaw(-1);
                             e.printStackTrace();
-                            writeErr(e.getMessage());
+                            sendErr(e.getMessage());
                         }
 
                     }
@@ -235,7 +276,7 @@ public class Connection extends Thread {
                     UsersManager.logout(user);
                     user = null;
                     currentPath = "/";
-                    writeWithCode(LOGOUT_STAT, "Logged out");
+                    sendWithCode(LOGOUT_STAT, "Logged out");
                     break;
                 default:
                     cmdNotFoundMsg();
@@ -251,22 +292,22 @@ public class Connection extends Thread {
         switch (cmd_fields[0].trim()) {
             case "login":
                 if (cmd_fields.length != 3) {
-                    writeErr("Missing parameter !");
+                    sendErr("Missing parameter !");
                     break;
                 }
                 try {
                     user = UsersManager.login(cmd_fields[1], cmd_fields[2]);
                     System.out.println("logged in user " + user.getFirstName());
                     cd(user.getHome());
-                    writeWithCode(LOGIN_STAT, "Welcome " + user.getFirstName());
+                    sendWithCode(LOGIN_STAT, "Welcome " + user.getFirstName());
                 } catch (IllegalArgumentException e) {
                     System.err.println(e);
-                    writeErr(e.getMessage());
+                    sendErr(e.getMessage());
                 }
                 break;
             case "signup":
                 if (cmd_fields.length != 6) {
-                    writeErr("Missing parameter !");
+                    sendErr("Missing parameter !");
                     break;
                 }
                 byte acc;
@@ -275,16 +316,16 @@ public class Connection extends Thread {
                 else if ("RESTR".equals(cmd_fields[5].toUpperCase()))
                     acc = Client.A_RESTR;
                 else {
-                    writeErr("Access rights is wrong format.");
+                    sendErr("Access rights is wrong format.");
                     break;
                 }
                 try {
                     user = UsersManager.register(cmd_fields[1], cmd_fields[2], cmd_fields[3], cmd_fields[4], acc);
                     System.out.println("user '" + user.getFirstName() + "' has registered.");
                     cd(user.getHome());
-                    writeWithCode(SIGNUP_STAT, "You have successfully signed up.");
+                    sendWithCode(SIGNUP_STAT, "You have successfully signed up.");
                 } catch (Exception e) {
-                    writeErr(e.getMessage());
+                    sendErr(e.getMessage());
                     //System.err.println(e);
                     e.printStackTrace();
                 }
@@ -295,14 +336,14 @@ public class Connection extends Thread {
     }
 
     private void cmdNotFoundMsg() {
-        writeErr("Command not found.\\nType 'help' to see all commands.\\nType 'help $commandName$' to command manual.");
+        sendErr("Command not found.\\nType 'help' to see all commands.\\nType 'help $commandName$' to command manual.");
     }
 
     public void terminateConnection() {
         try {
             if (user != null)
                 UsersManager.logout(user);
-            writeWithCode(EXIT_STAT, "Good bye");
+            sendWithCode(EXIT_STAT, "Good bye");
             socket.close();
             System.out.println("Connection Terminated");
         } catch (IOException e) {
