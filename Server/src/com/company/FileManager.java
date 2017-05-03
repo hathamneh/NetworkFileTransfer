@@ -1,6 +1,7 @@
 package com.company;
 
 import java.io.*;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Vector;
@@ -16,7 +17,7 @@ public class FileManager {
         Folder folder;
         try {
             folder = Folder.create(root_path + currentPath + name, currentUser);
-            Folder currentFolder = new Folder(root_path+currentPath);
+            Folder currentFolder = new Folder(root_path + currentPath);
             currentFolder.addFile(folder);
         } catch (IOException e) {
             e.printStackTrace();
@@ -30,10 +31,14 @@ public class FileManager {
         try {
             myFolder = new Folder(root_path + folder);
             int i = 0;
-            ArrayList<java.io.File> fls = myFolder.getFilesArray();
-            out = new String[fls.size()];
-            for (java.io.File tmpFile :
-                    fls) {
+            ArrayList<Folder> dirs = myFolder.getFoldersArray();
+            ArrayList<File> fls = myFolder.getFilesArray();
+            out = new String[dirs.size() + fls.size()];
+            for (Folder tmpDir : dirs) {
+                out[i] = tmpDir.getName();
+                i++;
+            }
+            for (File tmpFile : fls) {
                 out[i] = tmpFile.getName();
                 i++;
             }
@@ -43,20 +48,22 @@ public class FileManager {
         }
         return null;
     }
+
     static String[] listFilesMore(String folder) {
         Folder myFolder = null;
         String[] out;
         try {
             myFolder = new Folder(root_path + folder);
-            ArrayList<java.io.File> fls = myFolder.getFilesArray();
-            out = new String[fls.size()];
+            ArrayList<Folder> dirs = myFolder.getFoldersArray();
+            ArrayList<File> fls = myFolder.getFilesArray();
+            out = new String[dirs.size() + fls.size()];
             int i = 0;
-            for (java.io.File tmpFile :
-                    fls) {
-                if(tmpFile instanceof File)
-                    out[i] = ((File)tmpFile).getFileAccess() +"\t" + ((File)tmpFile).getOwner() + "\t" + ((File)tmpFile).modifyDate().toString() +" " + tmpFile.getName();
-                else if (tmpFile instanceof Folder)
-                    out[i] = "\\t-\t" + ((Folder)tmpFile).getOwner() + "\t" + ((Folder)tmpFile).modifyDate().toString() +" " + tmpFile.getName();
+            for (File tmpFile : fls) {
+                out[i] = (tmpFile).getFileAccess() + "\t" + tmpFile.getOwner() + "\t" + tmpFile.modifyDate().toString() + " " + tmpFile.getName();
+                i++;
+            }
+            for (Folder tmpDir: dirs) {
+                out[i] = "\\t-\t" + tmpDir.getOwner() + "\t" + tmpDir.modifyDate().toString() + " " + tmpDir.getName();
                 i++;
             }
             return out;
@@ -66,25 +73,54 @@ public class FileManager {
         return null;
     }
 
-    static void upload(byte[] file, String name,String currentPath,boolean filePrivate) {
+    static void upload(InputStream stream, String name, int fileSize, String currentPath, boolean filePrivate) {
         try {
-            File f = new File(name, currentPath, filePrivate,new Date());
-            if(!f.exists()) {
+            BufferedInputStream is = new BufferedInputStream(stream);
+
+            byte[] buff = new byte[1024 * 1024];
+            int k, count = 0;
+            File f = new File(name, currentPath, filePrivate, new Date());
+            if (!f.exists()) {
                 f.createNewFile();
+                Folder parent =  new Folder(f.getParent());
+                parent.addFile(f);
                 System.out.println("File Created!");
             } else {
                 System.out.println("File is already exist");
             }
             BufferedOutputStream bout = new BufferedOutputStream(
                     new FileOutputStream(f));
-            bout.write(file);
+            while (count < fileSize) {
+                k = is.read(buff);
+                bout.write(buff,0,k);
+                count += k;
+            }
             bout.flush();
-            Folder dir = new Folder(root_path + currentPath);
-            dir.addFile(f);
+            bout.close();
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    static void download(OutputStream stream, File file) throws Exception {
+
+        BufferedOutputStream os = new BufferedOutputStream(stream);
+        byte[] buff = new byte[1024 * 1024];
+        int k, count = 0;
+        BufferedInputStream bin = new BufferedInputStream(
+                new FileInputStream(file));
+        if (!file.exists()) {
+            throw new FileNotFoundException("Can't find the file");
+        }
+
+        while (count < file.length()) {
+            k = bin.read(buff, 0, buff.length);
+            os.write(buff);
+            count += k;
+        }
+        os.flush();
+        bin.close();
     }
 }

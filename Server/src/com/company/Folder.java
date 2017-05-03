@@ -9,8 +9,9 @@ import java.util.Date;
  * Created by haitham on 4/27/17.
  */
 public class Folder extends java.io.File {
-    private static final String detailsPath = ".data";
-    private ArrayList<java.io.File> files;
+    static final String detailsPath = ".data";
+    private ArrayList<File> files;
+    private ArrayList<Folder> folders;
     private Client owner;
     private Date creationDate;
 
@@ -18,12 +19,12 @@ public class Folder extends java.io.File {
         super(s);
         if (this.exists() && !this.isDirectory())
             throw new IOException("Not directory");
-        updateFilesArray();
+        refresh();
     }
 
     Folder(String s, boolean newfile) throws IOException {
         this(s);
-        if(newfile) {
+        if (newfile) {
             mkdir();
             files = getFilesArray();
 
@@ -33,8 +34,8 @@ public class Folder extends java.io.File {
 
     static Folder create(String s, Client owner) {
         try {
-            Folder newFolder = new Folder(s,true);
-            if(newFolder.files == null) newFolder.files = new ArrayList<>();
+            Folder newFolder = new Folder(s, true);
+            if (newFolder.files == null) newFolder.files = new ArrayList<>();
             newFolder.owner = owner;
             newFolder.creationDate = new Date();
             return newFolder;
@@ -48,35 +49,46 @@ public class Folder extends java.io.File {
         return (files != null) ? files.size() : 0;
     }
 
-    void addFile(java.io.File file) {
-        if(files == null) files = new ArrayList<>();
+    void addFile(File file) {
+        if (files == null) files = new ArrayList<>();
         files.add(file);
         updateDetailsFile();
     }
-
-    ArrayList<java.io.File> getFilesArray() {
-        if(files == null)
-            updateFilesArray();
-        return files;
+    void addFile(Folder file) {
+        if (folders == null) folders = new ArrayList<>();
+        folders.add(file);
+        updateDetailsFile();
     }
 
-    void updateFilesArray() {
+    ArrayList<File> getFilesArray() {
+        refresh();
+        return files;
+    }
+    ArrayList<Folder> getFoldersArray() {
+        refresh();
+        return folders;
+    }
+
+    void updateContentsArray() {
         java.io.File detailsFile = new java.io.File(this.getAbsolutePath() + "/" + detailsPath);
-        System.out.println(detailsFile.getAbsoluteFile());
         try {
             if (!detailsFile.exists()) {
-                detailsFile.createNewFile();
+                folders = new ArrayList<>();
                 files = new ArrayList<>();
-                updateDetailsFile();
             } else {
                 ObjectInputStream oin = new ObjectInputStream(new FileInputStream(detailsFile));
                 Object o = oin.readObject();
-                if (o != null)
-                    files = (ArrayList<java.io.File>) o;
+                if (o != null) {
+                    folders = (ArrayList<Folder>) o;
+                }
+                o = oin.readObject();
+                if (o != null) {
+                    files = (ArrayList<File>) o;
+                }
             }
         } catch (EOFException e) {
+            folders = new ArrayList<>();
             files = new ArrayList<>();
-            updateDetailsFile();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
@@ -84,11 +96,25 @@ public class Folder extends java.io.File {
         }
     }
 
+    void refresh() {
+        updateContentsArray();
+        ArrayList<Folder> realFolders = new ArrayList<>();
+        for (int i = 0; i < folders.size(); i++) {
+            if (folders.get(i).exists()) realFolders.add(folders.get(i));
+        }
+        folders = realFolders;
+        ArrayList<File> realFiles = new ArrayList<>();
+        for (int i = 0; i < files.size(); i++) {
+            if (files.get(i).exists()) realFiles.add(files.get(i));
+        }
+        files = realFiles;
+        updateDetailsFile();
+    }
+
     void updateDetailsFile() {
         java.io.File detailsFile = new java.io.File(this.getAbsolutePath() + "/" + detailsPath);
         if (!detailsFile.exists()) {
             try {
-                System.out.println(detailsFile.getAbsoluteFile());
                 detailsFile.createNewFile();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -96,10 +122,14 @@ public class Folder extends java.io.File {
         }
         try {
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(detailsFile));
+            if(folders == null) folders = new ArrayList<>();
+            if(files == null) files = new ArrayList<>();
+            out.writeObject(folders);
             out.writeObject(files);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
     public String getOwner() {

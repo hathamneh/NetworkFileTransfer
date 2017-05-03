@@ -12,6 +12,10 @@ public class Response {
     String currentPath;
     private boolean isErr = false;
 
+    public boolean isErr() {
+        return isErr;
+    }
+
     Response(String[] res) {
         if (res.length != 3)
             throw new IllegalArgumentException("res array must have length of 3");
@@ -45,4 +49,6 @@ public class Response {
     boolean hasMsg() {
         return !(null == msg || "" == msg);
     }
+
+
 }

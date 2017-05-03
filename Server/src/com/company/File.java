@@ -1,5 +1,8 @@
 package com.company;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 
 /**
@@ -40,5 +43,25 @@ public class File extends java.io.File {
 
     public String getFileAccess() {
         return filePrivate ? "private" : "public";
+    }
+
+    static File getFile(String name, String path, Client owner) throws IOException {
+        path = FileManager.root_path + path;
+        System.out.println(path + name);
+        Folder folder = new Folder(path);
+        folder.refresh();
+        ArrayList<File> files = folder.getFilesArray();
+        for (File file :
+                files) {
+            System.out.println(file.getName());
+            if (file.getName().equals(name)) {
+                if (file.getFileAccess().equals("public"))
+                    return file;
+                if (file.getOwner().equals(owner.toString()))
+                    return file;
+                throw new IOException("You have no access yo this file");
+            }
+        }
+        throw new FileNotFoundException("Can't find the file");
     }
 }

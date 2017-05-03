@@ -11,75 +11,65 @@ public class Main {
     static Socket socket;
     static BufferedReader userRead;
     static PrintWriter writer;
-    
+    static boolean loggedin = false;
+
     public static void main(String[] args) {
         String path = "";
         try {
-            socket = new Socket("127.0.0.1",PORT);
+            socket = new Socket("127.0.0.1", PORT);
             reader = new BufferedReader(
                     new InputStreamReader(socket.getInputStream()));
             String line = reader.readLine();
-            while(!line.equals(">")){
+            while (!line.equals(">")) {
                 System.out.println(line);
                 line = reader.readLine();
             }
-            System.out.print(line + " ");
-            userRead = new BufferedReader( new InputStreamReader(System.in) );
-            OutputStream socketOut =socket.getOutputStream();
-            String rawResponse = "";
+            //System.out.print(line + " ");
+            userRead = new BufferedReader(new InputStreamReader(System.in));
+            OutputStream socketOut = socket.getOutputStream();
+            String rawResponse;
             try {
                 while (true) {
+                    System.out.print((loggedin ? path : "") + "> ");
+
                     writer = new PrintWriter(new OutputStreamWriter(socketOut));
                     Response response;
                     String cmd = userRead.readLine();
 
-                    String[] cmd_fields = cmd.split(" ");
-                    File file = null;
-                    int fileSize = 0;
-                    if("upload".equals(cmd_fields[0]) && cmd_fields.length == 2) {
-                        file = new File(cmd_fields[1]);
-                        fileSize = (int) file.length();
-                        cmd = "upload "+file.getAbsolutePath()+" "+fileSize;
+                    Request request = Request.parseRequest(cmd);
 
-                    }
-                    System.out.println("----------------");
+                    if (request.isCommand()) {
 
-                    if (cmd != null && !("".equals(cmd))) {
-                        System.out.println(cmd);
-
-                        if(null != file && !file.exists()) {
-                            System.err.println("File Not Found!!!!!!!!");
-                        }
-                        if(!"upload".equals(cmd_fields[0])) {
-                            writer.println(cmd);
-                            writer.flush();
-                            rawResponse = reader.readLine();
+                        if (request.isUpload() && !request.fileExists()) {
+                            System.err.println("File Not Found!!");
+                            continue;
                         }
 
+                        //System.out.println(request.getCmd());
+                        writer.println(request.getCmd());
+                        writer.flush();
 
-                        if("upload".equals(cmd_fields[0]) && cmd_fields.length == 2) {
-                            writer.println(cmd);
-                            writer.flush();
-
-                            if(null != file && file.exists()) {
-                                FileInputStream bis;
-
-                                try {
-                                    bis = new FileInputStream(file);
-                                    byte[] fileByts = new byte[fileSize];
-                                    int count;
-                                    while((count = bis.read(fileByts)) > 0){}
-                                    socketOut.write(fileByts);
-                                    socketOut.flush();
-                                    rawResponse = reader.readLine();
-                                } catch (FileNotFoundException e1) {
-                                    e1.printStackTrace();
-                                } catch (IOException e1) {
-                                    e1.printStackTrace();
-                                }
+                        if (request.isUpload()) {
+                            try {
+                                request.sendFile(socketOut);
+                            } catch (FileNotFoundException e1) {
+                                System.err.println("File Not Found!!");
+                            } catch (IOException e1) {
+                                System.err.println("Some error happened :(");
+                            }
+                        }
+                        if (request.isDownload()) {
+                            try {
+                                request.recieveFile(socket.getInputStream());
+                            } catch (FileNotFoundException e1) {
+                                System.err.println("File Not Found!!");
+                            } catch (IOException e1) {
+                                System.err.println("Some error happened :(");
                             }
                         }
 
+                        rawResponse = reader.readLine();
+                        //System.out.println(rawResponse);
                         if (rawResponse != null)
                             response = Response.parseResponse(rawResponse);
                         else
@@ -93,8 +83,11 @@ public class Main {
 
                         switch (response.status) {
                             case 10:  // status 10 is for login command
+                                clearScreen();
                                 response.printMsg();
                                 path = response.currentPath;
+                                loggedin = true;
+
                                 break;
                             case 11:  // status 11 is for signup command
                                 response.printMsg();
@@ -102,6 +95,7 @@ public class Main {
                                 break;
                             case 9:  // status 9 is for logout
                                 path = "";
+                                loggedin = false;
                                 response.printMsg();
                                 break;
                             case 2:  // status 2 is for cd command
@@ -115,8 +109,7 @@ public class Main {
                                 break;
                         }
                     }
-                    System.err.flush();
-                    System.out.print(path + "> ");
+                    //System.out.print((loggedin ? path : "") + "> ");
                 }
             } catch (ConnectException ce) {
                 System.err.println(ce.getMessage());
@@ -127,4 +120,9 @@ public class Main {
         }
     }
 
+
+    public static void clearScreen() {
+        System.out.print("\033[H\033[2J");
+        System.out.flush();
+    }
 }
