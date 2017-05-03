@@ -8,14 +8,6 @@
   <component name="ChangeListManager">
     <list default="true" id="82491ced-8095-4a87-8cdc-c0699ed4a3a0" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/company/Main.java" afterPath="$PROJECT_DIR$/src/com/company/Main.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/company/Request.java" afterPath="$PROJECT_DIR$/src/com/company/Request.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/src/com/company/Response.java" afterPath="$PROJECT_DIR$/src/com/company/Response.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../Server/.idea/workspace.xml" afterPath="$PROJECT_DIR$/../Server/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../Server/src/com/company/Connection.java" afterPath="$PROJECT_DIR$/../Server/src/com/company/Connection.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../Server/src/com/company/File.java" afterPath="$PROJECT_DIR$/../Server/src/com/company/File.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../Server/src/com/company/FileManager.java" afterPath="$PROJECT_DIR$/../Server/src/com/company/FileManager.java" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../Server/src/com/company/Folder.java" afterPath="$PROJECT_DIR$/../Server/src/com/company/Folder.java" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -647,7 +639,7 @@
       <workItem from="1493707954760" duration="8066000" />
       <workItem from="1493739812586" duration="7437000" />
       <workItem from="1493793271455" duration="19720000" />
-      <workItem from="1493821846569" duration="2875000" />
+      <workItem from="1493821846569" duration="3131000" />
     </task>
     <task id="LOCAL-00001" summary="No changes, just testing.">
       <created>1493208952477</created>
@@ -670,11 +662,18 @@
       <option name="project" value="LOCAL" />
       <updated>1493793600181</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="progress for up/downloading, removing files and folders">
+      <created>1493827695463</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1493827695463</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="85383000" />
+    <option name="totallyTimeSpent" value="85639000" />
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -787,7 +786,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="No changes, just testing." />
     <MESSAGE value="New Class: Request.java&#10;Features added: Downloading a file&#10;Improvements: Transfer Files From Server to Client" />
-    <option name="LAST_COMMIT_MESSAGE" value="New Class: Request.java&#10;Features added: Downloading a file&#10;Improvements: Transfer Files From Server to Client" />
+    <MESSAGE value="progress for up/downloading, removing files and folders" />
+    <option name="LAST_COMMIT_MESSAGE" value="progress for up/downloading, removing files and folders" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />
