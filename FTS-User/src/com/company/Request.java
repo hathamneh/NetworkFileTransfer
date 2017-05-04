@@ -13,9 +13,12 @@ public class Request {
     String[] args;
 
     private File file;
+    private File tmpfile;
     private long fileSize;
 
     private Request(String cmd, String[] args) {
+        tmpfile = new File(System.getProperty("user.dir")+File.separator+"tmp");
+        tmpfile.mkdirs();
         this.cmd_name = cmd;
         this.args = args;
         if (isUpload()) {
@@ -29,7 +32,9 @@ public class Request {
             } else
                 file = new File(System.getProperty("user.dir") + File.separator + args[0]);
         }
-
+        if(isModify()) {
+            file = new File(tmpfile.getAbsolutePath()+File.separator+args[0]);
+        }
     }
 
     static Request parseRequest(String command) {
@@ -54,6 +59,10 @@ public class Request {
 
     boolean isDownload() {
         return "download".equals(cmd_name);
+    }
+
+    boolean isModify() {
+        return "edit".equals(cmd_name);
     }
 
     public long getFileSize() {
@@ -86,26 +95,32 @@ public class Request {
     }
 
     public void sendFile(OutputStream socketOS) throws IOException {
+        socketOS.flush();
+
+        // refresh file size
+        fileSize = file.length();
+
+        //System.out.println(file.length());
         FileInputStream bis = new FileInputStream(file);
         System.out.println("Uploading...");
         byte[] fileByts = new byte[1024];
         int sentBytes = 0, k;
-        DecimalFormat numberFormat = new DecimalFormat("#.00");
-        while (sentBytes < fileSize && (k = bis.read(fileByts))>0) {
+        DecimalFormat numberFormat = new DecimalFormat("#.0");
+        while (sentBytes < fileSize && (k = bis.read(fileByts)) > 0) {
             sentBytes += k;
             socketOS.write(fileByts, 0, k);
             socketOS.flush();
             System.out.print("\r " + numberFormat.format(sentBytes * 100.0 / fileSize) + "% (Uploaded " + hSize(sentBytes) + " of " + hSize(fileSize) + ")");
         }
+        System.out.print("\r 100% (Uploaded " + hSize(sentBytes) + " of " + hSize(fileSize) + ")");
         System.out.println();
         System.out.println("Just a sec...");
     }
 
     // Receive File from Server (Download)
-    public void recieveFile(InputStream socketIS, long fileSize) throws IOException, ClassNotFoundException {
-        byte[] buff = new byte[1024];
-        int current, bytesRead;
-        BufferedInputStream bin = new BufferedInputStream(socketIS);
+    public File receiveFile(InputStream socketIS, int fileSize) throws IOException, ClassNotFoundException {
+        byte[] buff = new byte[fileSize];
+        //BufferedInputStream bin = new BufferedInputStream(socketIS);
 
         System.out.println("Downloading " + hSize(fileSize) + ".... ");
         BufferedOutputStream bout = new BufferedOutputStream(
@@ -115,22 +130,32 @@ public class Request {
 
         //System.out.println(file.getAbsoluteFile());
         DecimalFormat numberFormat = new DecimalFormat("#.0");
-
         try {
-            int rcvdBytes = 0, k,i=0;
-            while((k = bin.read(buff)) > 0) {
+            //Thread.sleep(120);
+            int rcvdBytes = 0, k, i = 0;
+            while (rcvdBytes < fileSize) {
+                k = socketIS.read(buff);
                 rcvdBytes += k;
                 bout.write(buff, 0, k);
                 bout.flush();
-                if(i % 3 == 0)
-                    System.out.print("\r\r\r "+numberFormat.format(rcvdBytes * 100.0/fileSize) + "% (Downloaded "+hSize(rcvdBytes)+" of "+hSize(fileSize)+")");
+                if (i % 3 == 0)
+                    System.out.print("\r " + numberFormat.format(rcvdBytes * 100.0 / fileSize) + "% (Downloaded " + hSize(rcvdBytes) + " of " + hSize(fileSize) + ")");
                 i++;
-                if(rcvdBytes == fileSize) break;
             }
+            System.out.print("\r 100% (Downloaded " + hSize(rcvdBytes) + " of " + hSize(fileSize) + ")");
             System.out.println();
         } finally {
             bout.close();
+            return file;
         }
+    }
+
+    public void updateFile(OutputStream stream) throws IOException {
+        DataOutputStream dout = new DataOutputStream(new BufferedOutputStream(stream));
+        dout.writeInt((int) file.length());
+        dout.flush();
+        sendFile(stream);
+        file.delete();
     }
 
     public static String hSize(long bytes) {

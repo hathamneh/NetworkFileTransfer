@@ -2,7 +2,6 @@ package com.company;
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;
 
 public class Main {
 
@@ -49,16 +48,6 @@ public class Main {
                         writer.println(request.getCmd());
                         writer.flush();
 
-                        if (request.isUpload()) {
-                            try {
-                                request.sendFile(socketOut);
-                            } catch (FileNotFoundException e1) {
-                                System.err.println("File Not Found!!");
-                            } catch (IOException e1) {
-                                System.err.println("Some error happened :(");
-                            }
-                        }
-
                         rawResponse = reader.readLine();
                         //System.out.println(rawResponse);
                         if (rawResponse != null)
@@ -94,18 +83,39 @@ public class Main {
                                 if (!"".equals(response.msg))
                                     response.printMsg();
                                 break;
+                            case Response.UPLD_STAT:
+                                response.printMsg();
+                                try {
+                                    request.sendFile(socketOut);
+                                    rawResponse = reader.readLine();
+                                    response = Response.parseResponse(rawResponse);
+                                    response.printMsg();
+                                } catch (FileNotFoundException e1) {
+                                    System.err.println("File Not Found!!");
+                                } catch (IOException e1) {
+                                    System.err.println("Some error happened :(");
+                                }
+                                break;
                             case Response.DNLD_STAT:
                                 try {
                                     response.printMsg();
-                                    DataInputStream oin = new DataInputStream(new BufferedInputStream(
-                                            socket.getInputStream()));
-                                    long fsize = oin.readLong();
-                                    request.recieveFile(socket.getInputStream(), fsize);
+                                    // get file size
+                                    rawResponse = reader.readLine();
+                                    response = Response.parseResponse(rawResponse);
+                                    int fsize;
+                                    if(response.status == Response.FIL_SIZ)
+                                        fsize = Integer.parseInt(response.msg);
+                                    else
+                                        throw new Exception("Couldn't receive file size from server!");
+                                    //System.out.println(fsize);
+                                    request.receiveFile(socket.getInputStream(), fsize);
+                                    System.out.println("File fully received, sending ack");
                                     writer.println("0");
                                     writer.flush();
                                     rawResponse = reader.readLine();
                                     response = Response.parseResponse(rawResponse);
                                     response.printMsg();
+                                    socket.getInputStream().skip(socket.getInputStream().available());
                                 } catch (FileNotFoundException e1) {
                                     System.err.println("File Not Found!!");
                                 } catch (Exception e1) {
@@ -113,13 +123,56 @@ public class Main {
                                     System.err.println("Some error happened !");
                                 }
                                 break;
+                            case Response.EDT_STAT:
+                                response.printMsg();
+                                try {
+                                    // get file size
+                                    rawResponse = reader.readLine();
+                                    response = Response.parseResponse(rawResponse);
+                                    int fsize;
+                                    if(response.status == Response.FIL_SIZ)
+                                        fsize = Integer.parseInt(response.msg);
+                                    else
+                                        throw new Exception("Couldn't receive file size from server!");
+
+                                    File file = request.receiveFile(socket.getInputStream(), fsize);
+                                    System.out.println("- Note: You only can edit files as text.");
+                                    // open file using editor
+                                    try {
+                                        Process p = Runtime.getRuntime().exec("subl " + file.getAbsolutePath());
+                                        if (p != null) {
+
+                                            int retval = p.waitFor();
+                                            System.out.println(retval);
+                                            if (retval == 0)
+                                                System.out.println("Editing finished");
+
+                                        }
+                                    } catch (IOException e) {
+                                        System.err.println("error with command");
+                                    }
+                                    System.out.print("Have you finished editing? (y, n) > ");
+                                    while (!userRead.readLine().toLowerCase().equals("y")) {
+                                        System.out.print("Have you finished editing? choose one (y, n) > ");
+                                    }
+                                    // send modified version
+                                    request.updateFile(socket.getOutputStream());
+                                    // wait for ack
+                                    rawResponse = reader.readLine();
+                                    response = Response.parseResponse(rawResponse);
+                                    //response.printMsg();
+                                } catch (ClassNotFoundException e) {
+                                    System.err.println("File Not Found!!");
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    System.err.println("Some error happened !");
+                                }
                             default:
                                 path = response.currentPath;
                                 response.printMsg();
                                 break;
                         }
                     }
-                    //System.out.print((loggedin ? path : "") + "> ");
                 }
             } catch (ConnectException ce) {
                 System.err.println(ce.getMessage());

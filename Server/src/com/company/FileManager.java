@@ -73,12 +73,9 @@ public class FileManager {
         return null;
     }
 
-    static void upload(InputStream stream, String name, int fileSize, String currentPath, boolean filePrivate) {
+    synchronized static void upload(InputStream stream, String name, int fileSize, String currentPath, boolean filePrivate) {
         try {
             BufferedInputStream is = new BufferedInputStream(stream);
-
-            byte[] buff = new byte[1024];
-            int k, count = 0;
             File file = new File(name, currentPath, filePrivate, new Date());
             if (!file.exists()) {
                 file.createNewFile();
@@ -90,16 +87,7 @@ public class FileManager {
             }
             BufferedOutputStream bout = new BufferedOutputStream(
                     new FileOutputStream(file));
-            try {
-                while (count < fileSize) {
-                    k = is.read(buff);
-                    bout.write(buff,0,k);
-                    count += k;
-                    bout.flush();
-                }
-            } finally {
-                bout.close();
-            }
+            copyStream(is,bout,fileSize);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -107,29 +95,29 @@ public class FileManager {
         }
     }
 
-    static void download(OutputStream stream, File file) throws Exception {
+    synchronized static void download(OutputStream stream, File file) throws Exception {
         int fileSize = (int)file.length();
         BufferedOutputStream os = new BufferedOutputStream(stream);
         byte[] buff = new byte[fileSize];
-        BufferedInputStream bin = new BufferedInputStream(
-                new FileInputStream(file));
+        FileInputStream bin = new FileInputStream(file);
         if (!file.exists()) {
             throw new FileNotFoundException("Can't find the file");
         }
         try {
             int sentBytes=0,k;
-            while ((k = bin.read(buff))>0) {
+            while (sentBytes < fileSize && (k = bin.read(buff))>0) {
                 sentBytes += k;
                 os.write(buff, 0, k);
                 os.flush();
-                if(sentBytes == fileSize) break;
             }
+            //System.out.println(sentBytes);
         } finally {
+            os.flush();
             bin.close();
         }
     }
 
-    static void delete(java.io.File file) {
+    synchronized static void delete(java.io.File file) {
         try {
             Folder parent = new Folder(file.getParent());
             file.delete();
@@ -138,5 +126,38 @@ public class FileManager {
             e.printStackTrace();
         }
 
+    }
+
+    synchronized static void update(InputStream stream, File file, int fileSize) throws Exception {
+        try {
+            //BufferedInputStream is = new BufferedInputStream(stream);
+            if (!file.exists()) {
+                throw new FileNotFoundException("File can't be found on the server!");
+            }
+            file.setLastModified((new Date()).getTime());
+            BufferedOutputStream bout = new BufferedOutputStream(
+                    new FileOutputStream(file));
+            //System.out.println(fileSize);
+            copyStream(stream,bout,fileSize);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    synchronized static void copyStream(InputStream source, OutputStream destination, int size) throws IOException {
+        int count = 0,k;
+        byte[] buff = new byte[1024];
+        try {
+            while (count < size) {
+                k = source.read(buff);
+                destination.write(buff,0,k);
+                count += k;
+                destination.flush();
+            }
+        } finally {
+            destination.close();
+        }
     }
 }

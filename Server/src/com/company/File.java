@@ -66,4 +66,22 @@ public class File extends java.io.File {
         return null;
     }
 
+    void lock() {
+        try {
+            java.io.File lockFile = new java.io.File(getParent()+File.separator+"."+getName()+".lock");
+            lockFile.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    void unlock() {
+        if(isLocked()) {
+            java.io.File lockFile = new java.io.File(getParent() + File.separator + "." + getName() + ".lock");
+            lockFile.delete();
+        }
+    }
+    boolean isLocked() {
+            java.io.File lockFile = new java.io.File(getParent()+File.separator+"."+getName()+".lock");
+            return lockFile.exists();
+    }
 }

@@ -3,6 +3,7 @@ package com.company;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.file.AccessDeniedException;
 
 /**
  * Connection
@@ -18,6 +19,8 @@ public class Connection extends Thread {
     private static final int UPLD_STAT = 15;
     private static final int DNLD_STAT = 16;
     private static final int RM_STAT = 17;
+    private static final int EDT_STAT = 18;
+    private static final int FIL_SIZ = 19;
 
     private Client user;
     private Socket socket;
@@ -159,7 +162,6 @@ public class Connection extends Thread {
             e.printStackTrace();
         }
     }
-
     public void execCmd(String cmd) {
         if (user != null) {
             System.out.println(cmd);
@@ -214,9 +216,8 @@ public class Connection extends Thread {
                                 FileManager.delete(folder);
                                 // send acknowledgment
                                 sendWithCode(RM_STAT, "Folder deleted!");
-                            }
-
-
+                            } else
+                                sendErr("Can't find "+filename);
                         } catch (Exception e) {
                             e.printStackTrace();
                             sendErr(e.getMessage());
@@ -226,14 +227,13 @@ public class Connection extends Thread {
                 case "upload":
                     //System.out.println(cmd_fields.length);
                     if (cmd_fields.length == 3) {
-
                         String filename;
                         if (cmd_fields[1].lastIndexOf("/") != -1)
                             filename = cmd_fields[1].substring(cmd_fields[1].lastIndexOf("/"));
                         else
                             filename = cmd_fields[1];
                         int fileSize = Integer.parseInt(cmd_fields[2]);
-                        //System.out.println(fileSize);
+                        sendWithCode(UPLD_STAT,"Waiting for file");
                         try {
                             FileManager.upload(socket.getInputStream(), filename, fileSize, currentPath, false);
                             sendMsg("File Uploaded");
@@ -251,12 +251,15 @@ public class Connection extends Thread {
                         try {
                             // get the file
                             File file = File.search(filename, currentPath.replaceFirst("/", ""), user);
+                            if (file == null) throw new FileNotFoundException("Can't locate file in server!");
                             sendWithCode(DNLD_STAT, "File located, preparing to download...");
                             // send file size
-                            System.out.println(file.length());
-                            sendRaw(file.length());
+                            System.out.println(file.getName()+" - "+file.length());
+                            sendWithCode(FIL_SIZ, ""+file.length());
                             // send the file contnets to user
+                            Thread.sleep(500);
                             FileManager.download(socket.getOutputStream(), file);
+                            System.out.println("file loaded to stream, waiting acknowledgment");
                             String s = readCmd();
                             System.out.println(s);
                             if (s != null && 0 == Integer.parseInt(s))
@@ -270,7 +273,39 @@ public class Connection extends Thread {
                     }
                     break;
                 case "edit":
+                    if(cmd_fields.length == 2) {
+                        String filname = cmd_fields[1];
+                        try {
+                            File file = File.search(filname, currentPath, user);
+                            if (file == null) throw new FileNotFoundException("Can't locate file in server!");
+                            if(file.isLocked()) {
+                                throw new AccessDeniedException("File is locked (it may be opened by another connection)");
+                            }
+                            file.lock();
+                            sendWithCode(EDT_STAT, "File located, preparing to download...");
+                            // send file size
+                            sendWithCode(FIL_SIZ, ""+file.length());
+                            // send file contents to user
+                            Thread.sleep(500);
+                            FileManager.download(socket.getOutputStream(), file);
 
+                            DataInputStream oin = new DataInputStream(new BufferedInputStream(
+                                    socket.getInputStream()));
+                            int fsize = oin.readInt();
+                            System.out.println(fsize);
+                            FileManager.update(socket.getInputStream(), file, fsize);
+                            sendMsg("File Updated");
+                            file.unlock();
+
+                        } catch (FileNotFoundException e) {
+                            sendErr(e.getMessage());
+                        } catch (AccessDeniedException e){
+                            sendErr(e.getMessage());
+                        } catch (Exception e) {
+                            //sendErr(e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
                     break;
                 case "logout":
                     UsersManager.logout(user);

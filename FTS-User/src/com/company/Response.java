@@ -21,6 +21,8 @@ public class Response {
     static final int UPLD_STAT = 15;
     static final int DNLD_STAT = 16;
     static final int RM_STAT = 17;
+    static final int EDT_STAT = 18;
+    static final int FIL_SIZ = 19;
 
 
     int status;
@@ -34,12 +36,11 @@ public class Response {
 
     Response(String[] res) {
         if (res.length != 3)
-            throw new IllegalArgumentException("res array must have length of 3");
+            throw new IllegalArgumentException("response array must have length of 3");
         status = Integer.parseInt(res[0]);
         msg = unescapeJava(res[1]);
         currentPath = res[2];
         isErr = status == -1;
-
     }
 
     static Response parseResponse(String res) {
