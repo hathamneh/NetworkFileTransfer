@@ -42,9 +42,6 @@ public class UsersManager {
 
         if (checkUsername(uname)) {
             Client newUser = new Client(fname, lname, uname, pass, accRights, new Date());
-            if (!newUser.createUserDir()) {
-                throw new IOException ("User Directory cannot be created!");
-            }
             newUser.updateLastLogin();
             registeredUsers.put(newUser.getId(), newUser);
             updateUsersFile();
@@ -72,7 +69,7 @@ public class UsersManager {
             } else
                 throw new IllegalArgumentException("User/Password not match");
         }
-        throw new IllegalArgumentException("User not found!");
+        throw new IllegalArgumentException("User '"+uname+"' not found!");
     }
 
     static boolean checkPass(Client user, String pass) {

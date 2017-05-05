@@ -45,7 +45,7 @@ public class Connection extends Thread {
             String command;
             try {
                 while (true) {
-                    command = readCmd().trim();
+                    command = readUserIn().trim();
                     if (command == null || "exit".equals(command)) {
                         terminateConnection();
                         break;
@@ -110,23 +110,10 @@ public class Connection extends Thread {
         return currentPath;
     }
 
-    public String readCmd() throws IOException {
+    public String readUserIn() throws IOException {
         BufferedReader reader;
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         return reader.readLine();
-    }
-
-    public Object readObj() {
-        ObjectInputStream reader;
-        try {
-            reader = new ObjectInputStream(socket.getInputStream());
-            return reader.readObject();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
     }
 
     public void sendCurrentPath() {
@@ -297,8 +284,9 @@ public class Connection extends Thread {
                                 // send the file contnets to user
                                 Thread.sleep(500);
                                 FileManager.download(socket.getOutputStream(), file);
+                                file.incDowns();
                                 System.out.println("file loaded to stream, waiting acknowledgment");
-                                String s = readCmd();
+                                String s = readUserIn();
                                 System.out.println(s);
                                 if (s != null && 0 == Integer.parseInt(s))
                                     sendMsg("File Downloaded");
@@ -328,6 +316,7 @@ public class Connection extends Thread {
                                     // send file contents to user
                                     Thread.sleep(500);
                                     FileManager.download(socket.getOutputStream(), file);
+                                    file.editedBy(user);
 
                                     DataInputStream oin = new DataInputStream(new BufferedInputStream(
                                             socket.getInputStream()));
@@ -364,12 +353,12 @@ public class Connection extends Thread {
                         if (cmd_fields.length == 1) {
                             try {
                                 sendWithCode(PASSWD_STAT, "Enter old password: ");
-                                String oldPass = readCmd();
+                                String oldPass = readUserIn();
                                 if(UsersManager.checkPass(user, oldPass)) {
                                     sendWithCode(PASSWD_STAT,"Enter new password: ");
-                                    String confirm = readCmd();
+                                    String confirm = readUserIn();
                                     if("yes".equals(confirm)) {
-                                        String newPass = readCmd();
+                                        String newPass = readUserIn();
                                         UsersManager.passwd(user, newPass);
                                         sendMsg("Password changed successfully.");
                                     }

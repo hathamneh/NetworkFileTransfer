@@ -23,11 +23,10 @@ public class Folder extends java.io.File {
     }
 
     Folder(String s, boolean newfile) throws IOException {
-        this(s);
+        super(s);
         if (newfile) {
-            mkdir();
+            mkdirs();
             files = getFilesArray();
-
         }
 
     }
@@ -184,5 +183,17 @@ public class Folder extends java.io.File {
         }
 
         return null;
+    }
+
+    public boolean updateFile(File file) {
+        ArrayList<File> filesArray = getFilesArray();
+        for (int i = 0; i < filesArray.size(); i++) {
+            if (file.getName().equals(filesArray.get(i).getName())) {
+                filesArray.set(i, file);
+                updateDetailsFile();
+                return true;
+            }
+        }
+        return false;
     }
 }

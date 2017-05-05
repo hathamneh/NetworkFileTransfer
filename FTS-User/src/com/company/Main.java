@@ -130,7 +130,6 @@ public class Main {
                                     response.printMsg();
                                 break;
                             case Response.UPLD_STAT: // Upload operation accepted, start uploading
-                                response.printMsg();
                                 try {
                                     // send file through socket
                                     request.sendFile(socketOut);

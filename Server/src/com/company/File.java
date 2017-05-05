@@ -11,14 +11,18 @@ import java.util.Date;
  */
 public class File extends java.io.File {
     private Client owner;
+    private Client lastUser;
     private Date uploadDate;
     private boolean filePrivate;
+    private int downloadCount;
 
     public File(String name, String path, Client owner, boolean filePrivate, Date uploadDate) {
         super(FileManager.root_path + path + name);
         this.uploadDate = uploadDate;
         this.owner = owner;
+        this.lastUser = owner;
         this.filePrivate = filePrivate;
+        downloadCount = 0;
     }
 
     static String filterPath(String path) {
@@ -29,9 +33,33 @@ public class File extends java.io.File {
         return owner.getUsername();
     }
 
-    public void setOwner(Client owner) {
-        if (this.owner.getAccessRights() == Client.A_ALL)
-            this.owner = new Client(owner);
+    public String getLastUser() {
+        return lastUser.getUsername();
+    }
+
+    public void editedBy(Client c) {
+        lastUser = c;
+        try {
+            Folder f = new Folder(getParent());
+            f.updateFile(this);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void incDowns() {
+        downloadCount++;
+        try {
+            Folder f = new Folder(getParent());
+            System.out.println(f.updateFile(this));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public int getDownloadCount() {
+        return downloadCount;
     }
 
     public Date getUploadDate() {
@@ -65,6 +93,34 @@ public class File extends java.io.File {
         }
 
         return null;
+    }
+
+    static File adminSearch(String fullPath) throws IOException {
+        java.io.File tmp = new java.io.File(FileManager.root_path+fullPath);
+        Folder parent = new Folder(tmp.getParent());
+        parent.refresh();
+        ArrayList<File> files = parent.getFilesArray();
+        for (File file :
+                files) {
+            //System.out.println(file.getName());
+            if (file.getName().equals(tmp.getName())) {
+                    return file;
+            }
+        }
+        return null;
+    }
+
+    String getDetails() {
+        String format = "%21s %s";
+        String out = String.format(format,"File name:",getName())
+                + "\n" + String.format(format,"Full path:",getPath())
+                + "\n" + String.format(format,"Access:",getFileAccess())
+                + "\n" + String.format(format,"Upload date:",getUploadDate())
+                + "\n" + String.format(format,"Owner uname:",getOwner())
+                + "\n" + String.format(format,"Last Modified:",new Date(lastModified()))
+                + "\n" + String.format(format,"Modified by:",getLastUser())
+                + "\n" + String.format(format,"Number of downloads:",getDownloadCount());
+        return out;
     }
 
     void lock() {

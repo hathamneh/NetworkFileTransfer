@@ -34,7 +34,7 @@ public class Client implements Serializable {
         this.password = password;
         this.accessRights = accessRights;
         try {
-            this.myFolder = new Folder(FileManager.root_path + username + File.separator);
+            this.myFolder = new Folder(FileManager.root_path + username + File.separator,true);
         } catch (IOException e) {
             e.printStackTrace();
         }

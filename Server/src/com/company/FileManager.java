@@ -112,6 +112,7 @@ public class FileManager {
             }
             //System.out.println(sentBytes);
         } finally {
+
             os.flush();
             bin.close();
         }
