@@ -64,12 +64,19 @@ public class UsersManager {
      */
     static Client login(String uname, String pass) {
         Client cl = checkUser(uname);
-        if(cl != null && cl.getPassword().equals(pass)) {
-            cl.updateLastLogin();
-            loggedinUsers.put(cl.getId(), cl);
-            return cl;
+        if(cl != null){
+            if(checkPass(cl, pass)) {
+                cl.updateLastLogin();
+                loggedinUsers.put(cl.getId(), cl);
+                return cl;
+            } else
+                throw new IllegalArgumentException("User/Password not match");
         }
-        throw new IllegalArgumentException("User/Password not match");
+        throw new IllegalArgumentException("User not found!");
+    }
+
+    static boolean checkPass(Client user, String pass) {
+        return user.getPassword().equals(pass);
     }
 
     /**
@@ -81,6 +88,10 @@ public class UsersManager {
     static boolean logout(Client client) {
         loggedinUsers.remove(client.getId());
         return false;
+    }
+
+    static void passwd(Client user, String newPass) {
+        user.setPassword(newPass);
     }
 
     static HashMap<Integer, Client> retrieveUsers() {

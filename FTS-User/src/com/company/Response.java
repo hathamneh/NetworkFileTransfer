@@ -12,11 +12,13 @@ import static org.apache.commons.lang3.StringEscapeUtils.unescapeJava;
  * Created by haitham on 4/23/17.
  */
 public class Response {
+    // Server Statuses
     static final int EXIT_STAT = 1;
     static final int CD_STAT = 2;
     static final int SIGNUP_STAT = 11;
     static final int LOGIN_STAT = 10;
     static final int LOGOUT_STAT = 9;
+    static final int PASSWD_STAT = 8;
     static final int ERR_STAT = -1;
     static final int UPLD_STAT = 15;
     static final int DNLD_STAT = 16;
@@ -24,42 +26,63 @@ public class Response {
     static final int EDT_STAT = 18;
     static final int FIL_SIZ = 19;
 
-
     int status;
     String msg;
     String currentPath;
     private boolean isErr = false;
 
-    public boolean isErr() {
-        return isErr;
-    }
-
-    Response(String[] res) {
-        if (res.length != 3)
-            throw new IllegalArgumentException("response array must have length of 3");
+    private Response(String[] res) {
         status = Integer.parseInt(res[0]);
         msg = unescapeJava(res[1]);
         currentPath = res[2];
         isErr = status == -1;
     }
 
+    /**
+     * Create Response object from raw response text
+     * The only way to create response
+     * @param res
+     * @return
+     */
     static Response parseResponse(String res) {
-        return new Response(res.split(";"));
+        String[] resArr = res.split(";");
+        if (resArr.length != 3)
+            throw new IllegalArgumentException("Raw Response must 3 fields");
+        return new Response(resArr);
     }
+
+    /**
+     * Does the response is an error
+     * @return boolean
+     */
+    public boolean isErr() {
+        return isErr;
+    }
+
 
     @Override
     public String toString() {
         return status + ";" + msg + ";" + currentPath;
     }
 
+    /**
+     * Print the message returned from server
+     */
     void printMsg() {
         System.out.print("\r");
         if(hasMsg()) {
             if (isErr)
                 System.err.println(msg);
-            else
+            else if (status == PASSWD_STAT) {
+                System.out.print(msg);
+            } else
                 System.out.println(msg);
             System.err.flush();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             System.out.flush();
         }
     }
@@ -68,17 +91,4 @@ public class Response {
         return !(null == msg || "" == msg);
     }
 
-
-    public static Object receiveObj(InputStream inputStream) {
-        try {
-            ObjectInputStream oin = new ObjectInputStream(inputStream);
-            return oin.readObject();
-        } catch (IOException e) {
-            System.err.println("Can't retrieve file info");
-            return null;
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }

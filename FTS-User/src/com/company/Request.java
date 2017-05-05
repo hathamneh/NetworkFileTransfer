@@ -5,7 +5,7 @@ import java.text.DecimalFormat;
 
 /**
  * Request
- * Created by haitham on 4/30/17.
+ * process the user command and fix its arguments, upload and download files from server
  */
 public class Request {
 
@@ -17,26 +17,36 @@ public class Request {
     private long fileSize;
 
     private Request(String cmd, String[] args) {
+        // create temporary folder for editing files
         tmpfile = new File(System.getProperty("user.dir")+File.separator+"tmp");
         tmpfile.mkdirs();
+
         this.cmd_name = cmd;
         this.args = args;
+        // if command is upload create File object to upload it
         if (isUpload()) {
             file = new File(args[0]);
             fileSize = file.length();
         }
+        // if command is download create File object to download to it
         if (isDownload()) {
-            if (args.length == 2) {
+            if (args.length == 2) { // download to given path
                 file = new File(args[1] + File.separator + args[0]);
                 args[1] = "";
-            } else
+            } else // download to current directory
                 file = new File(System.getProperty("user.dir") + File.separator + args[0]);
         }
+        // if modify create temp file to make changes on it
         if(isModify()) {
             file = new File(tmpfile.getAbsolutePath()+File.separator+args[0]);
         }
     }
 
+    /**
+     * Parse the user command and create Request object
+     * @param command
+     * @return New Request object from given command
+     */
     static Request parseRequest(String command) {
         if (command != null && !("".equals(command))) {
             String[] cmd_data = command.split(" ");
@@ -53,87 +63,129 @@ public class Request {
         }
     }
 
+    /**
+     * whether command is upload or not
+     * @return boolean
+     */
     boolean isUpload() {
-        return "upload".equals(cmd_name) && (args.length == 2 || args.length == 1);
+        return "upload".equals(cmd_name) && args != null;
     }
 
+    /**
+     * whether command is download or not
+     * @return boolean
+     */
     boolean isDownload() {
-        return "download".equals(cmd_name);
+        return "download".equals(cmd_name) && args != null;
     }
 
+    /**
+     * whether command is edit or not
+     * @return boolean
+     */
     boolean isModify() {
         return "edit".equals(cmd_name);
     }
 
+    /**
+     * whether command has arguments or not
+     * @return boolean
+     */
     boolean hasArgs() {
         return args != null && args.length > 0;
     }
 
+    /**
+     * get the full command to be sent to the server
+     * @return String command
+     */
     public String getCmd() {
         String out = cmd_name + " ";
         if (hasArgs())
             for (String arg : args)
                 out += arg + " ";
-        if (isUpload()) out += fileSize;
+        if (isUpload()) out += fileSize; // add the file size to the command if it is upload
         return out;
     }
 
+    /**
+     * Does this object has a real command
+     * @return boolean
+     */
     public boolean isCommand() {
         return null != cmd_name;
     }
 
+    /**
+     * whether the file to make an operation on it exists or not
+     * @return boolean
+     */
     public boolean fileExists() {
         return file.exists();
     }
 
+    /**
+     * Send the file contents to the server
+     * @param socketOS The output stream of the socket
+     * @throws IOException If an error occurred while sending the file contents
+     */
     public void sendFile(OutputStream socketOS) throws IOException {
-        socketOS.flush();
 
-        // refresh file size
+        // refresh file size if it is modified
         fileSize = file.length();
 
-        //System.out.println(file.length());
+        // Create stream to read from file
         FileInputStream bis = new FileInputStream(file);
-        System.out.println("Uploading...");
         byte[] fileByts = new byte[1024];
         int sentBytes = 0, k;
-        DecimalFormat numberFormat = new DecimalFormat("#.0");
+
+        // start uploading
+        System.out.println("Uploading "+hSize(fileSize)+"...");
+        DecimalFormat numberFormat = new DecimalFormat("#.0"); // this line for format the percentage
         while (sentBytes < fileSize && (k = bis.read(fileByts)) > 0) {
             sentBytes += k;
             socketOS.write(fileByts, 0, k);
             socketOS.flush();
+            // show percentage
             System.out.print("\r " + numberFormat.format(sentBytes * 100.0 / fileSize) + "% (Uploaded " + hSize(sentBytes) + " of " + hSize(fileSize) + ")");
         }
+        // finished uploading
         System.out.print("\r 100% (Uploaded " + hSize(sentBytes) + " of " + hSize(fileSize) + ")");
         System.out.println();
+        // wait the server to finish processing the file
         System.out.println("Just a sec...");
     }
 
-    // Receive File from Server (Download)
-    public File receiveFile(InputStream socketIS, int fileSize) throws IOException, ClassNotFoundException {
-        byte[] buff = new byte[fileSize];
-        //BufferedInputStream bin = new BufferedInputStream(socketIS);
-
-        System.out.println("Downloading " + hSize(fileSize) + ".... ");
+    /**
+     * Receive file contents from server
+     * @param socketIS The input stream of the socket
+     * @param fileSize Number of bytes to be received
+     * @return File the object of received file
+     * @throws IOException If an error occurred while receiving
+     */
+    public File receiveFile(InputStream socketIS, int fileSize) throws IOException {
+        // create stream to write the file
         BufferedOutputStream bout = new BufferedOutputStream(
                 new FileOutputStream(file));
+        byte[] buff = new byte[fileSize];
+        int rcvdBytes = 0, k;
+
+        // Assure the file exists
         if (!file.exists())
             file.createNewFile();
 
-        //System.out.println(file.getAbsoluteFile());
-        DecimalFormat numberFormat = new DecimalFormat("#.0");
+        // start downloading
+        System.out.println("Downloading " + hSize(fileSize) + ".... ");
+        DecimalFormat numberFormat = new DecimalFormat("#.0"); // for percentage
         try {
-            //Thread.sleep(120);
-            int rcvdBytes = 0, k, i = 0;
             while (rcvdBytes < fileSize) {
                 k = socketIS.read(buff);
                 rcvdBytes += k;
                 bout.write(buff, 0, k);
                 bout.flush();
-                if (i % 3 == 0)
-                    System.out.print("\r " + numberFormat.format(rcvdBytes * 100.0 / fileSize) + "% (Downloaded " + hSize(rcvdBytes) + " of " + hSize(fileSize) + ")");
-                i++;
+                System.out.print("\r " + numberFormat.format(rcvdBytes * 100.0 / fileSize) + "% (Downloaded " + hSize(rcvdBytes) + " of " + hSize(fileSize) + ")");
             }
+            // finish downloading
             System.out.print("\r 100% (Downloaded " + hSize(rcvdBytes) + " of " + hSize(fileSize) + ")");
             System.out.println();
         } finally {
@@ -142,14 +194,30 @@ public class Request {
         }
     }
 
-    public void updateFile(OutputStream stream) throws IOException {
-        DataOutputStream dout = new DataOutputStream(new BufferedOutputStream(stream));
+    /**
+     * send modified version of file to the server
+     * @param socketOS The output stream of socket
+     * @throws IOException
+     */
+    public void updateFile(OutputStream socketOS) throws IOException {
+        // send the new file size of modified file
+        DataOutputStream dout = new DataOutputStream(new BufferedOutputStream(socketOS));
         dout.writeInt((int) file.length());
         dout.flush();
-        sendFile(stream);
-        file.delete();
+        // send the file
+        try {
+            sendFile(socketOS);
+        } finally {
+            // delete tmp file after updating
+            file.delete();
+        }
     }
 
+    /**
+     * Get Human readable format of file size
+     * @param bytes size to be converted
+     * @return String
+     */
     public static String hSize(long bytes) {
         int unit = 1024;
         if (bytes < unit) return bytes + " B";
