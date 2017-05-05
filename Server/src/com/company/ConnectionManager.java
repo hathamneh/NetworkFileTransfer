@@ -34,8 +34,9 @@ public class ConnectionManager extends Thread {
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
-                Thread conn = new Connection(socket);
-                System.out.println("Connection Established");
+                Connection conn = new Connection(socket);
+                connections.add(conn);
+                System.out.println("Connection Established with id "+connections.indexOf(conn));
                 conn.start();
             } catch (IOException e) {
                 //e.printStackTrace();

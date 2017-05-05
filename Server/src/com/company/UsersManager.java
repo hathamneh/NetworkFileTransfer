@@ -45,6 +45,7 @@ public class UsersManager {
             if (!newUser.createUserDir()) {
                 throw new IOException ("User Directory cannot be created!");
             }
+            newUser.updateLastLogin();
             registeredUsers.put(newUser.getId(), newUser);
             updateUsersFile();
             loggedinUsers.put(newUser.getId(), newUser);
@@ -64,6 +65,7 @@ public class UsersManager {
     static Client login(String uname, String pass) {
         Client cl = checkUser(uname);
         if(cl != null && cl.getPassword().equals(pass)) {
+            cl.updateLastLogin();
             loggedinUsers.put(cl.getId(), cl);
             return cl;
         }

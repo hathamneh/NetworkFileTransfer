@@ -20,8 +20,9 @@ public class Client implements Serializable {
     private String username;
     private String password;
     private Date registrationDate;
+    private Date lastLogin;
     private byte accessRights;
-    private File myFolder;
+    private Folder myFolder;
 
     Client() {}
 
@@ -32,7 +33,11 @@ public class Client implements Serializable {
         this.username = username;
         this.password = password;
         this.accessRights = accessRights;
-        this.myFolder = new File(FileManager.root_path + username + "/");
+        try {
+            this.myFolder = new Folder(FileManager.root_path + username + File.separator);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         this.registrationDate = registrationDate;
     }
 
@@ -95,14 +100,15 @@ public class Client implements Serializable {
     }
 
     public String getHome() {
-        return  username;
+        return username;
     }
 
     public String getData() {
         String data = "Full name: "+firstName + " " + lastName + "\n" +
                 "username: " + username + "\n" +
-                "password: " + password + "\n" +
-                "home folder: " + getHome() + "\n" +
+                "last login: " + lastLogin.toString() + "\n" +
+                //"password: " + password + "\n" +
+                "home folder: " + FileManager.root_path + getHome() + "\n" +
                 "Access Rights: " + getReadableAccessRights();
         return data;
     }
@@ -114,5 +120,13 @@ public class Client implements Serializable {
     public void delete() throws IOException {
         if(!myFolder.delete())
             throw new IOException("Can't delete user folder");
+    }
+
+    void updateLastLogin() {
+        lastLogin = new Date();
+    }
+
+    public Date lastLogin() {
+        return lastLogin;
     }
 }

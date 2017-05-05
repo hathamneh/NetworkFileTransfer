@@ -1,5 +1,6 @@
 package com.company;
 
+import java.awt.*;
 import java.io.*;
 import java.net.*;
 
@@ -70,8 +71,10 @@ public class Main {
 
                                 break;
                             case Response.SIGNUP_STAT:  // status 11 is for signup command
+                                clearScreen();
                                 response.printMsg();
                                 path = response.currentPath;
+                                loggedin = true;
                                 break;
                             case Response.LOGOUT_STAT:  // status 9 is for logout
                                 path = "";
@@ -138,39 +141,25 @@ public class Main {
                                     File file = request.receiveFile(socket.getInputStream(), fsize);
                                     System.out.println("- Note: You only can edit files as text.");
                                     // open file using editor
-                                    try {
-                                        Process p = Runtime.getRuntime().exec("subl " + file.getAbsolutePath());
-                                        if (p != null) {
-
-                                            int retval = p.waitFor();
-                                            System.out.println(retval);
-                                            if (retval == 0)
-                                                System.out.println("Editing finished");
-
-                                        }
-                                    } catch (IOException e) {
-                                        System.err.println("error with command");
-                                    }
-                                    System.out.print("Have you finished editing? (y, n) > ");
-                                    while (!userRead.readLine().toLowerCase().equals("y")) {
-                                        System.out.print("Have you finished editing? choose one (y, n) > ");
-                                    }
+                                    Desktop.getDesktop().open(file);
+                                    System.out.print("Press Enter after finish editing> ");
+                                    userRead.readLine();
                                     // send modified version
                                     request.updateFile(socket.getOutputStream());
                                     // wait for ack
                                     rawResponse = reader.readLine();
                                     response = Response.parseResponse(rawResponse);
-                                    //response.printMsg();
+                                    response.printMsg();
                                 } catch (ClassNotFoundException e) {
                                     System.err.println("File Not Found!!");
                                 } catch (Exception e) {
                                     e.printStackTrace();
                                     System.err.println("Some error happened !");
                                 }
+                                break;
                             default:
                                 path = response.currentPath;
                                 response.printMsg();
-                                break;
                         }
                     }
                 }

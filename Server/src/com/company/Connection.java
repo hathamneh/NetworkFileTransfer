@@ -22,9 +22,10 @@ public class Connection extends Thread {
     private static final int EDT_STAT = 18;
     private static final int FIL_SIZ = 19;
 
+    private int id;
     private Client user;
     private Socket socket;
-    private String currentPath = "/";
+    private String currentPath = File.separator;
 
     public Connection(Socket socket) {
         this.socket = socket;
@@ -35,9 +36,9 @@ public class Connection extends Thread {
         try {
             PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
             writer.println("Welcome to our File Transfer Service");
-            writer.println("to get started you should login, if you dont have an account yet yo can register now for free.");
+            writer.println("Login or register to start having fun");
             writer.println("--------------------------");
-            writer.println("type \"login\" or \"signup\"");
+            writer.println("type 'login' or 'signup', if you need help at any time enter 'help'");
             writer.println(">");
             writer.flush();
             String command;
@@ -54,7 +55,9 @@ public class Connection extends Thread {
                 System.err.println("Connection lost!");
             } catch (NullPointerException e) {
                 System.err.println("Connection lost!");
+                e.printStackTrace();
             } finally {
+                if(user != null && UsersManager.isLoggedIn(user))UsersManager.loggedinUsers.remove(user.getId());
                 socket.close();
             }
         } catch (IOException e) {
@@ -65,38 +68,35 @@ public class Connection extends Thread {
     public String cd(String path) {
         path = File.filterPath(path);
         String tmp_path = "";
-        switch (path) {
-            case "../":
-                if (!currentPath.equals(FileManager.root_path)) {
-                    tmp_path = currentPath.substring(0,
-                            currentPath.substring(0, currentPath.length() - 1).lastIndexOf("/") + 1);
-                    if (tmp_path.equals(""))
-                        tmp_path = "/";
-                    break;
-                }
-                System.err.println("You are at root path: " + pwd());
-                break;
-            case "/":
-                tmp_path = "/";
-                break;
-            default:
-                Folder tmpFolder = null;
-                try {
-                    tmpFolder = new Folder(FileManager.root_path + currentPath + path);
-                    if (tmpFolder.exists()) {
-                        tmp_path = currentPath + path;
-                        break;
-                    }
-                } catch (IOException e) {
-                    sendErr(e.getMessage());
-                    e.printStackTrace();
-                }
+        if ((".."+File.separator).equals(path)) {
+            if (!currentPath.equals(FileManager.root_path)) {
+                tmp_path = currentPath.substring(0,
+                        currentPath.substring(0, currentPath.length() - 1).lastIndexOf(File.separator) + 1);
+                if (tmp_path.equals(""))
+                    tmp_path = File.separator;
+            }
+            System.err.println("You are at root path: " + pwd());
 
+        } else if (File.separator.equals(path)) {
+            tmp_path = File.separator;
 
-                System.err.println("Path does not exist!");
+        } else {
+            Folder tmpFolder;
+            try {
+                path = path.replace(File.separator, "");
+                tmpFolder = new Folder(FileManager.root_path + currentPath + path + File.separator);
+                if (tmpFolder.exists()) {
+                    tmp_path = currentPath + path + File.separator;
+                } else
+                    return "No such file or directory, you can only move one level";
+            } catch (IOException e) {
+                sendErr(e.getMessage());
+                e.printStackTrace();
+            }
+
         }
         if (!(user.getAccessRights() == Client.A_RESTR
-                && tmp_path.equals("/"))) {
+                && File.separator.equals(tmp_path))) {
             currentPath = tmp_path;
             return null;
         } else {
@@ -191,14 +191,27 @@ public class Connection extends Thread {
                         sendErr("mkdir takes only one parameter");
                     break;
                 case "ls":
-                    if (cmd_fields.length == 1) {
-                        String[] files = FileManager.listFiles(currentPath);
-                        String data = "";
-                        for (String file :
-                                files) {
-                            data += file + "\\t";
+                    try {
+                        if (cmd_fields.length == 1) {
+                            String[] files = FileManager.listFiles(currentPath);
+                            String data = "";
+                            for (String file :
+                                    files) {
+                                data += file + "\\t\\t";
+                            }
+                            sendMsg(data);
+                        } else if (cmd_fields.length == 2 && cmd_fields[1].equals("-l")) {
+                            String[] files = FileManager.listFilesMore(currentPath);
+                            String data = "";
+                            for (String file :
+                                    files) {
+                                data += file + "\\n";
+                            }
+                            sendMsg(data);
                         }
-                        sendMsg(data);
+                    } catch (Exception e) {
+                        sendErr(e.getMessage());
+                        e.printStackTrace();
                     }
                     break;
                 case "rm":
@@ -226,23 +239,31 @@ public class Connection extends Thread {
                     break;
                 case "upload":
                     //System.out.println(cmd_fields.length);
-                    if (cmd_fields.length == 3) {
+                    if (cmd_fields.length == 4 || cmd_fields.length == 3) {
                         String filename;
                         if (cmd_fields[1].lastIndexOf("/") != -1)
                             filename = cmd_fields[1].substring(cmd_fields[1].lastIndexOf("/"));
                         else
                             filename = cmd_fields[1];
-                        int fileSize = Integer.parseInt(cmd_fields[2]);
+                        String accessRights = "public";
+                        if(cmd_fields.length == 4)
+                            accessRights = cmd_fields[2];
+                        boolean fp = "private".equals(accessRights);
+                        int fileSize;
+                        if(cmd_fields.length == 4)
+                            fileSize = Integer.parseInt(cmd_fields[3]);
+                        else
+                            fileSize = Integer.parseInt(cmd_fields[2]);
                         sendWithCode(UPLD_STAT,"Waiting for file");
                         try {
-                            FileManager.upload(socket.getInputStream(), filename, fileSize, currentPath, false);
+                            FileManager.upload(socket.getInputStream(), filename, fileSize, currentPath, user, fp);
                             sendMsg("File Uploaded");
 
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
 
-                    }
+                    } else
                     break;
                 case "download":
                     //System.out.println(cmd_fields.length);
@@ -282,25 +303,29 @@ public class Connection extends Thread {
                                 throw new AccessDeniedException("File is locked (it may be opened by another connection)");
                             }
                             file.lock();
-                            sendWithCode(EDT_STAT, "File located, preparing to download...");
-                            // send file size
-                            sendWithCode(FIL_SIZ, ""+file.length());
-                            // send file contents to user
-                            Thread.sleep(500);
-                            FileManager.download(socket.getOutputStream(), file);
+                            try {
+                                sendWithCode(EDT_STAT, "File located, preparing to download...");
+                                // send file size
+                                sendWithCode(FIL_SIZ, ""+file.length());
+                                // send file contents to user
+                                Thread.sleep(500);
+                                FileManager.download(socket.getOutputStream(), file);
 
-                            DataInputStream oin = new DataInputStream(new BufferedInputStream(
-                                    socket.getInputStream()));
-                            int fsize = oin.readInt();
-                            System.out.println(fsize);
-                            FileManager.update(socket.getInputStream(), file, fsize);
-                            sendMsg("File Updated");
-                            file.unlock();
-
-                        } catch (FileNotFoundException e) {
-                            sendErr(e.getMessage());
-                        } catch (AccessDeniedException e){
-                            sendErr(e.getMessage());
+                                DataInputStream oin = new DataInputStream(new BufferedInputStream(
+                                        socket.getInputStream()));
+                                int fsize = oin.readInt();
+                                System.out.println(fsize);
+                                FileManager.update(socket.getInputStream(), file, fsize);
+                                sendMsg("File Updated");
+                            } catch (FileNotFoundException e) {
+                                sendErr(e.getMessage());
+                            } catch (AccessDeniedException e){
+                                sendErr(e.getMessage());
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            } finally {
+                                file.unlock();
+                            }
                         } catch (Exception e) {
                             //sendErr(e.getMessage());
                             e.printStackTrace();
@@ -310,7 +335,7 @@ public class Connection extends Thread {
                 case "logout":
                     UsersManager.logout(user);
                     user = null;
-                    currentPath = "/";
+                    currentPath = File.separator;
                     sendWithCode(LOGOUT_STAT, "Logged out");
                     break;
                 default:
@@ -351,14 +376,15 @@ public class Connection extends Thread {
                 else if ("RESTR".equals(cmd_fields[5].toUpperCase()))
                     acc = Client.A_RESTR;
                 else {
-                    sendErr("Access rights is wrong format.");
+                    sendErr("Access rights has wrong format.");
                     break;
                 }
                 try {
                     user = UsersManager.register(cmd_fields[1], cmd_fields[2], cmd_fields[3], cmd_fields[4], acc);
                     System.out.println("user '" + user.getFirstName() + "' has registered.");
                     cd(user.getHome());
-                    sendWithCode(SIGNUP_STAT, "You have successfully signed up.");
+                    System.out.println(currentPath);
+                    sendWithCode(SIGNUP_STAT, "Thank you "+user.getFirstName()+"\\nYou have successfully signed up.");
                 } catch (Exception e) {
                     sendErr(e.getMessage());
                     //System.err.println(e);

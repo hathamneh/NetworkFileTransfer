@@ -54,7 +54,7 @@ public class Request {
     }
 
     boolean isUpload() {
-        return "upload".equals(cmd_name) && args.length == 1;
+        return "upload".equals(cmd_name) && (args.length == 2 || args.length == 1);
     }
 
     boolean isDownload() {
@@ -63,14 +63,6 @@ public class Request {
 
     boolean isModify() {
         return "edit".equals(cmd_name);
-    }
-
-    public long getFileSize() {
-        return fileSize;
-    }
-
-    public String getFileAbsolutePath() {
-        return file.getAbsolutePath();
     }
 
     boolean hasArgs() {

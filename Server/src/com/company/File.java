@@ -14,9 +14,10 @@ public class File extends java.io.File {
     private Date uploadDate;
     private boolean filePrivate;
 
-    public File(String name, String path, boolean filePrivate, Date uploadDate) {
+    public File(String name, String path, Client owner, boolean filePrivate, Date uploadDate) {
         super(FileManager.root_path + path + name);
         this.uploadDate = uploadDate;
+        this.owner = owner;
         this.filePrivate = filePrivate;
     }
 
@@ -25,7 +26,7 @@ public class File extends java.io.File {
     }
 
     public String getOwner() {
-        return owner.toString();
+        return owner.getUsername();
     }
 
     public void setOwner(Client owner) {
@@ -55,11 +56,11 @@ public class File extends java.io.File {
                 files) {
             //System.out.println(file.getName());
             if (file.getName().equals(name)) {
-                if (file.getFileAccess().equals("public"))
+                if (owner.getAccessRights() == Client.A_ALL && !file.filePrivate)
                     return file;
-                if (file.getOwner().equals(owner.toString()))
+                if (file.getOwner().equals(owner.getUsername()))
                     return file;
-                throw new IOException("You don't have access to delete this file");
+                throw new IOException("You don't have access to this file");
             }
         }
 

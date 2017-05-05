@@ -133,7 +133,7 @@ public class Folder extends java.io.File {
     }
 
     public String getOwner() {
-        return owner.toString();
+        return owner.getUsername();
     }
 
     public void setOwner(Client owner) {
