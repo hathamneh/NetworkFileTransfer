@@ -2,6 +2,8 @@
 Small system for for managing files on server using Java.
 Multiuser, multithreaded, command line application.
 
+Credit goes to me **Haitham Athamneh** as the main developer. And for **Ahmad Qasrawi and Yazan Al-Haj**.
+
 [Made for educational purposes]
 
 # Features
@@ -26,11 +28,11 @@ Edit a file (it should be text file).
 List files in current directory.
 * `pwd`
 Show current directory.
-* `rm $filename|folder`
+* `rm $filename|$folder`
 Delete file, or recursivly delete folder.
-* `cd ..|folder`
+* `cd ..|$folder`
 Change current directory.
-* `mkdir name`
+* `mkdir $name`
 Create new directory.
 * `signup $fname $lname $uname $pass all|restr`
 Register new user.
@@ -46,4 +48,19 @@ Get help for one or all commands.
 Terminate connection and exit.
 
 # Server Side Commands
-*to be added later*
+* `users all`
+Show all registered users.
+* `users active`
+Show all currently connected users.
+* `user data $name`
+Show all user data.
+* `user delete $name`
+Delete a user by user name.
+* `file info $path`
+Show all file meta data.
+
+# One last word
+I've published this work to help others understand how you can use java api for sending and receiving files through the network.
+
+# Contact me
+If you need any further help in this project, don't be shy, send me an email to himoath@gmail.com
