@@ -6,7 +6,7 @@ Credit goes to me **Haitham Athamneh** as the main developer. And for **Ahmad Qa
 
 [Made for educational purposes]
 
-# Features
+## Features
 
 * Multiuser
 You can signup and create as many users as you want, each user has first and last name, username, password and access privilage (All: can access every thing, Restrected: can access only his files).
@@ -17,7 +17,7 @@ The application can serve multiple connections at the same time.
 * Easy to understand
 The application is written using modular design, every component is an independent module
 
-# Client Side Commands
+## Client Side Commands
 * `download $filename [dest]`
 Download file from server.
 * `upload $filename [private]`
@@ -47,7 +47,7 @@ Get help for one or all commands.
 * `exit`
 Terminate connection and exit.
 
-# Server Side Commands
+## Server Side Commands
 * `users all`
 Show all registered users.
 * `users active`
@@ -59,8 +59,8 @@ Delete a user by user name.
 * `file info $path`
 Show all file meta data.
 
-# One last word
+## One last word
 I've published this work to help others understand how you can use java api for sending and receiving files through the network.
 
-# Contact me
+## Contact Me
 If you need any further help in this project, don't be shy, send me an email to himoath@gmail.com
