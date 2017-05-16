@@ -17,7 +17,7 @@ The application can serve multiple connections at the same time.
 * Easy to understand
 The application is written using modular design, every component is an independent module
 
-## Client Side Commands
+### Client Side Commands
 * `download $filename [dest]`
 Download file from server.
 * `upload $filename [private]`
@@ -47,7 +47,7 @@ Get help for one or all commands.
 * `exit`
 Terminate connection and exit.
 
-## Server Side Commands
+### Server Side Commands
 * `users all`
 Show all registered users.
 * `users active`
@@ -62,5 +62,5 @@ Show all file meta data.
 ## One last word
 I've published this work to help others understand how you can use java api for sending and receiving files through the network.
 
-## Contact Me
+### Contact Me
 If you need any further help in this project, don't be shy, send me an email to himoath@gmail.com
